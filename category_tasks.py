@@ -112,6 +112,163 @@ class composite_rule(object):
                                    str(self.rule_b))
 
 
+def _and_to_or_inner(rule):
+    if isinstance(rule, basic_rule):
+        return rule
+    if rule.rule_type == "AND":
+        new_rule_type = "OR"
+    elif rule.rule_type == "OR":
+        new_rule_type = "AND"
+    else: 
+        new_rule_type = rule.rule_type
+    result_a = _and_to_or_inner(rule.rule_a)
+    result_b = _and_to_or_inner(rule.rule_b)
+    return composite_rule(new_rule_type, result_a, result_b)
+
+
+def _and_to_or(rule):
+    if isinstance(rule, basic_rule):
+        return None
+    
+    result_a = None
+    result_b = None
+    if rule.rule_type not in ["AND", "OR"]:
+        if isinstance(rule.rule_a, composite_rule):
+            result_a = _and_to_or(rule.rule_a)
+        if isinstance(rule.rule_b, composite_rule):
+            result_b = _and_to_or(rule.rule_b)
+        if result_a is None and result_b is None:
+            return None
+        else:
+            new_rule_type = rule.rule_type
+        return composite_rule(new_rule_type, result_a, result_b)
+
+    if rule.rule_type == "AND":
+        new_rule_type = "OR"
+    elif rule.rule_type == "OR":
+        new_rule_type = "AND"
+
+    if result_a is None:
+        result_a = _and_to_or_inner(rule.rule_a)
+    if result_b is None:
+        result_b = _and_to_or_inner(rule.rule_b)
+    return composite_rule(new_rule_type, result_a, result_b)
+
+
+def _negated(rule):
+    if isinstance(rule, basic_rule):
+        if rule.attribute_type == "shape":
+            new_accepted_list = [x for x in BASIC_SHAPES if x not in rule.accepted_list] 
+        elif rule.attribute_type == "color":
+            new_accepted_list = [x for x in BASIC_COLORS.keys() if x not in rule.accepted_list] 
+        else: 
+            new_accepted_list = [x for x in BASIC_SIZES if x not in rule.accepted_list] 
+        return basic_rule(attribute_type=rule.attribute_type,
+                          accepted_list=new_accepted_list)
+    else:
+        result_a = _negated(rule.rule_a)
+        result_b = _negated(rule.rule_b)
+        if rule.rule_type == "OR":
+            new_rule_type == "AND"
+        elif rule.rule_type == "AND":
+            new_rule_type == "OR"
+        else:
+            new_rule_type == "XOR"
+            result_b = rule.rule_b  # NXOR(A, B) = XOR(!A, B)
+    return composite_rule(new_rule_type, result_a, result_b)
+        
+
+def _switch_basic_attribute_inner(rule, target_attribute_type, pairs):
+    if isinstance(rule, basic_rule):
+        if rule.attribute_type == target_attribute_type:
+            new_accepted_list = [x for x in BASIC_SHAPES if x not in rule.accepted_list] 
+        else:
+            return rule 
+    else:
+        result_a = _switch_basic_attribute_inner(rule.rule_a)
+        result_b = _switch_basic_attribute_inner(rule.rule_b)
+        return composite_rule(rule.rule_type, result_a, result_b) 
+
+
+def _switch_basic_attribute(rule, target_attribute_type, pairs):
+    if isinstance(rule, basic_rule):
+        if rule.attribute_type == target_attribute_type:
+            new_accepted_list = []
+            for x in rule.accepted_list:
+                if x in pairs:
+                    new_accepted_list.append(pairs[x])
+                else:
+            new_accepted_list = [x for x in rule.accepted_list] 
+        else:
+            return None
+    else:
+        result_a = _switch_basic_attribute(rule.rule_a)
+        result_b = _switch_basic_attribute(rule.rule_b)
+        if result_a is None and result_b is None:
+            return None
+        if result_a is None:
+            result_a = _switch_basic_attribute_inner(rule.rule_a)
+        if result_b is None:
+            result_b = _switch_basic_attribute_inner(rule.rule_b)
+        return composite_rule(rule.rule_type, result_a, result_b)
+
+
+def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks, meta_class_eval_tasks,
+                      meta_map_train_tasks, meta_map_eval_tasks):
+    """Gets which tasks map to which other tasks under the meta mappings."""
+    all_meta_tasks = meta_class_train_tasks + meta_class_eval_tasks + meta_map_train_tasks + meta_map_eval_tasks
+    meta_pairings = {mt: {"train": [], "eval": []} for mt in all_meta_tasks}
+    for mt in all_meta_tasks:
+        
+        if mt == "NOT":
+            meta_mapping = lambda rule: _negated(rule)
+        elif mt == "AND_to_OR":
+            meta_mapping = lambda rule: _and_to_or(rule)
+        elif mt[:7] == "switch_":
+            commands = mt.split("_")
+            target_attribute_type = commands[1]
+            pairs = dict([x.split("~") for x in commands[2:]])
+            meta_mapping = lambda rule: _switch_basic_attribute(
+                rule, target_attribute_type, pairs)
+        elif mt[:3] == "is_":  # meta classification
+            classification_type = mt[3:]
+            if classification_type == "composite":
+                meta_mapping = lambda rule: isinstance(rule, composite_rule)
+            elif classification_type[:10] == "basic_rule":
+                attribute_type == classification_type[11:]  # skip underscore
+                meta_mapping = lambda rule: isinstance(rule, basic_rule) and rule.attribute_type == attribute_type 
+            elif classification_type[:8] == "relevant":
+                attribute_type == classification_type[9:]
+                def meta_mapping(rule):
+                    if isinstance(rule, basic_rule)
+                        return rule.attribute_type == attribute_type 
+                    else: 
+                        return meta_mapping(rule.rule_a) or meta_mapping(rule.rule_b)
+            else:  # type of composite rule
+                meta_mapping = lambda rule: isinstance(rule, composite_rule) and rule.rule_type == classification_type 
+        else: 
+            raise ValueError("Unrecognized meta task: {}".format(mt))
+        
+        if mt[:3] == "is_":
+            for curr_tasks, train_or_eval in zip([base_train_tasks,
+                                                  base_eval_tasks],
+                                                 ["train", "eval"]):
+                for task in curr_tasks:
+                    res = meta_mapping(task)
+                    meta_pairings[mt][train_or_eval].append(stringify(task), 1. * res)
+
+        else:
+            for task in base_train_tasks:
+                res = meta_mapping(task)
+                if res is not None:
+                    if res in base_train_tasks:
+                        meta_pairings[mt]["train"].append(stringify(task)
+                    else:
+                        meta_pairings[mt]["eval"].append(stringify(task)
+
+    return meta_pairings
+
+
 if __name__ == "__main__":
     tasks = [basic_rule("shape", ["triangle", "circle"]),
              basic_rule("color", ["red"]),
