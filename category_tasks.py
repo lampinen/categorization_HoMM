@@ -194,9 +194,9 @@ def _switch_basic_attribute_inner(rule, target_attribute_type, pairs):
         if rule.attribute_type == target_attribute_type:
             new_accepted_list = []
             for x in rule.accepted_list:
-                if x in pairs:
+                if x in pairs and pairs[x] not in new_accepted_list:
                     new_accepted_list.append(pairs[x])
-                else:
+                elif x not in new_accepted_list:
                     new_accepted_list.append(x)
             return basic_rule(attribute_type=rule.attribute_type,
                               accepted_list=new_accepted_list)
@@ -213,9 +213,9 @@ def _switch_basic_attribute(rule, target_attribute_type, pairs):
         if rule.attribute_type == target_attribute_type:
             new_accepted_list = []
             for x in rule.accepted_list:
-                if x in pairs:
+                if x in pairs and pairs[x] not in new_accepted_list:
                     new_accepted_list.append(pairs[x])
-                else:
+                elif x not in new_accepted_list:
                     new_accepted_list.append(x)
             return basic_rule(attribute_type=rule.attribute_type,
                               accepted_list=new_accepted_list)
