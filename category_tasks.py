@@ -137,7 +137,7 @@ def _and_to_or_inner(rule):
     return composite_rule(new_rule_type, result_a, result_b)
 
 
-def _and_to_or(rule):
+def and_to_or(rule):
     if isinstance(rule, basic_rule):
         return None
     
@@ -145,9 +145,9 @@ def _and_to_or(rule):
     result_b = None
     if rule.rule_type not in ["AND", "OR"]:
         if isinstance(rule.rule_a, composite_rule):
-            result_a = _and_to_or(rule.rule_a)
+            result_a = and_to_or(rule.rule_a)
         if isinstance(rule.rule_b, composite_rule):
-            result_b = _and_to_or(rule.rule_b)
+            result_b = and_to_or(rule.rule_b)
         if result_a is None and result_b is None:
             return None
         else:
@@ -166,7 +166,7 @@ def _and_to_or(rule):
     return composite_rule(new_rule_type, result_a, result_b)
 
 
-def _negated(rule):
+def negated(rule):
     if isinstance(rule, basic_rule):
         if rule.attribute_type == "shape":
             new_accepted_list = [x for x in BASE_SHAPES if x not in rule.accepted_list] 
@@ -177,8 +177,8 @@ def _negated(rule):
         return basic_rule(attribute_type=rule.attribute_type,
                           accepted_list=new_accepted_list)
     else:
-        result_a = _negated(rule.rule_a)
-        result_b = _negated(rule.rule_b)
+        result_a = negated(rule.rule_a)
+        result_b = negated(rule.rule_b)
         if rule.rule_type == "OR":
             new_rule_type = "AND"
         elif rule.rule_type == "AND":
@@ -208,7 +208,7 @@ def _switch_basic_attribute_inner(rule, target_attribute_type, pairs):
         return composite_rule(rule.rule_type, result_a, result_b) 
 
 
-def _switch_basic_attribute(rule, target_attribute_type, pairs):
+def switch_basic_attribute(rule, target_attribute_type, pairs):
     if isinstance(rule, basic_rule):
         if rule.attribute_type == target_attribute_type:
             new_accepted_list = []
@@ -222,9 +222,9 @@ def _switch_basic_attribute(rule, target_attribute_type, pairs):
         else:
             return None
     else:
-        result_a = _switch_basic_attribute(rule.rule_a, target_attribute_type, 
+        result_a = switch_basic_attribute(rule.rule_a, target_attribute_type, 
                                            pairs)
-        result_b = _switch_basic_attribute(rule.rule_b, target_attribute_type,
+        result_b = switch_basic_attribute(rule.rule_b, target_attribute_type,
                                            pairs)
         if result_a is None and result_b is None:
             return None
@@ -247,14 +247,14 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
     for mt in all_meta_tasks:
         
         if mt == "NOT":
-            meta_mapping = lambda rule: _negated(rule)
+            meta_mapping = lambda rule: negated(rule)
         elif mt == "AND_to_OR":
-            meta_mapping = lambda rule: _and_to_or(rule)
+            meta_mapping = lambda rule: and_to_or(rule)
         elif mt[:7] == "switch_":
             commands = mt.split("_")
             target_attribute_type = commands[1]
             pairs = dict([x.split("~") for x in commands[2:]])
-            meta_mapping = lambda rule: _switch_basic_attribute(
+            meta_mapping = lambda rule: switch_basic_attribute(
                 rule, target_attribute_type, pairs)
         elif mt[:3] == "is_":  # meta classification
             classification_type = mt[3:]
@@ -313,12 +313,12 @@ if __name__ == "__main__":
                 plt.imshow(inst.image)
                 plt.show()
 
-    print(_negated(tasks[1]))
-    print(_negated(tasks[3]))
-    print(_and_to_or(tasks[1]))
-    print(_and_to_or(tasks[3]))
-    print(_switch_basic_attribute(tasks[1], "color", {"red": "blue"}))
-    print(_switch_basic_attribute(tasks[3], "color", {"red": "blue"}))
+    print(negated(tasks[1]))
+    print(negated(tasks[3]))
+    print(and_to_or(tasks[1]))
+    print(and_to_or(tasks[3]))
+    print(switch_basic_attribute(tasks[1], "color", {"red": "blue"}))
+    print(switch_basic_attribute(tasks[3], "color", {"red": "blue"}))
     print()
     pairs = get_meta_pairings(tasks[:-1], tasks[-1:], ["is_basic_rule_color", "is_basic_rule_size", "is_relevant_color", "is_relevant_shape", "is_OR", "is_XOR"], [], ["NOT", "AND_to_OR", "switch_color_red~blue", "switch_shape_triangle~square_circle~plus"], []) 
     for k, v in pairs.items():
