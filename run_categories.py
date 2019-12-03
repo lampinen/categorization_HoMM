@@ -31,7 +31,7 @@ run_config.update({
                       ],
 
     "refresh_mem_buffs_every": 100000000,  # no refreshing for us
-    "eval_every": 5,
+    "eval_every": 10,
 })
 
 
@@ -44,7 +44,7 @@ architecture_config.update({
     "M_num_hidden": 512,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 32,
+    "F_num_hidden": 64,
     "optimizer": "RMSProp",
 
     "meta_batch_size": 40,
