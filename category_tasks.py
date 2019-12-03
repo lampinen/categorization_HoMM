@@ -62,6 +62,9 @@ class categorization_instance(object):
     def __str__(self):
         return "{}_{}_{}".format(self.shape, self.color, self.size)
 
+    def __eq__(self, other):
+        return isinstance(other, categorization_instance) and self.shape == other.shape and self.color == other.color and self.size == other.size
+
 
 class basic_rule(object):
     def __init__(self, attribute_type, accepted_list):
@@ -82,6 +85,9 @@ class basic_rule(object):
 
     def __str__(self):
         return "{}:{}".format(self.attribute_type, self.accepted_list)
+
+    def __eq__(self, other):
+        return isinstance(other, basic_rule) and self.attribute_type == other.attribute_type and self.accepted_list == other.accepted_list
 
 
 def XOR(a, b):
@@ -110,6 +116,11 @@ class composite_rule(object):
         return "{}({}, {})".format(self.rule_type, 
                                    str(self.rule_a),
                                    str(self.rule_b))
+
+    def __eq__(self, other):
+        if not isinstance(other, composite_rule):
+            return False
+        return self.rule_type == other.rule_type and ((self.rule_a == other.rule_a and self.rule_b == other.rule_b) or (self.rule_a == other.rule_b and self.rule_b == other.rule_a))
 
 
 def _and_to_or_inner(rule):
