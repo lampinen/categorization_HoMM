@@ -85,7 +85,7 @@ class basic_rule(object):
             return lambda inst: inst.size in self.accepted_list
 
     def __str__(self):
-        return "{}:{}".format(self.attribute_type, sorted(self.accepted_list))
+        return "{}:{}".format(self.attribute_type, "&".join(sorted(self.accepted_list)))
 
     def __eq__(self, other):
         return isinstance(other, basic_rule) and self.attribute_type == other.attribute_type and self.accepted_list == other.accepted_list
@@ -299,7 +299,7 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
 if __name__ == "__main__":
     tasks = [basic_rule("shape", ["triangle", "circle"]),
              basic_rule("color", ["red"]),
-             basic_rule("size", [24])] 
+             basic_rule("size", ["24"])] 
     tasks.append(composite_rule("OR", tasks[1], tasks[2]))
     tasks.append(composite_rule("XOR", tasks[1], tasks[2]))
     tasks.append(composite_rule("AND", tasks[1], tasks[2]))

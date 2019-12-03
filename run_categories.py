@@ -31,6 +31,7 @@ run_config.update({
                       ],
 
     "refresh_mem_buffs_every": 100000000,  # no refreshing for us
+    "eval_every": 5,
 })
 
 
@@ -49,8 +50,42 @@ architecture_config.update({
     "meta_batch_size": 40,
     "meta_holdout_size": 20,
 
-    "memory_buffer_size": 100,
+    "memory_buffer_size": 96,
 })
+
+
+class memory_buffer(object):
+    """Essentially a wrapper around numpy arrays that handles inserting and
+    removing."""
+    def __init__(self, length, input_shape, outcome_width):
+        self.length = length
+        self.curr_index = 0
+        self.input_buffer = np.zeros([length] + input_shape)
+        self.outcome_buffer = np.zeros([length, outcome_width])
+
+    def insert(self, input_mat, outcome_mat):
+        num_events = len(input_mat)
+        if num_events > self.length:
+            num_events = length
+            self.input_buffer = input_mat[-length:, :, :, :]
+            self.outcome_buffer = outcome_mat[-length:, :]
+            self.curr_index = 0.
+            return
+        end_offset = num_events + self.curr_index
+        if end_offset > self.length:
+            back_off = self.length - end_offset
+            num_to_end = num_events + back_off
+            self.input_buffer[:-back_off, :, :, :] = input_mat[num_to_end:, :, :, :]
+            self.outcome_buffer[:-back_off, :] = outcome_mat[num_to_end:, :]
+        else:
+            back_off = end_offset
+            num_to_end = num_events
+        self.input_buffer[self.curr_index:back_off, :, :, :] = input_mat[:num_to_end, :, :, :]
+        self.outcome_buffer[self.curr_index:back_off, :] = outcome_mat[:num_to_end, :]
+        self.curr_index = np.abs(back_off)
+
+    def get_memories(self):
+        return self.input_buffer, self.outcome_buffer
 
 
 # architecture 
@@ -73,8 +108,9 @@ def vision(processed_input, z_dim, reuse=False):
 
 
 def xe_loss(output_logits, targets):
-    return tf.nn.sigmoid_cross_entropy_with_logits(logits=output_logits,
-                                                   labels=targets)
+    return tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=output_logits,
+                                                labels=targets))
 
 
 class category_HoMM_model(HoMM_model.HoMM_model):
@@ -98,12 +134,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"])]
         run_config["base_train_tasks"] += train_shape_pair_tasks 
-        run_config["base_train_tasks"] += [category_tasks.basic_rule("size", [16, 24]), category_tasks.basic_rule("size", [16, 32])]
+        run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
 
         # and eval tasks that target the meta-mappings, especially held-out ones:
         run_config["base_eval_tasks"] += [x for x in color_pair_tasks if x not in train_color_pair_tasks]
         run_config["base_eval_tasks"] += [category_tasks.basic_rule("shape", ["triangle", "circle"])] 
-        run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", [32, 24])] 
+        run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["32", "24"])] 
 
         # now feature-conjunctive tasks, part random, with targeted holdouts 
         colors = category_tasks.BASE_COLORS.keys()
@@ -163,6 +199,34 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             category_tasks.composite_rule(
                 "XOR",
                 category_tasks.basic_rule("shape", ["triangle"]),
+                category_tasks.basic_rule("size", ["16"])),
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("shape", ["circle"]),
+                category_tasks.basic_rule("size", ["24"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("shape", ["square"]),
+                category_tasks.basic_rule("size", ["24"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("shape", ["triangle"]),
+                category_tasks.basic_rule("size", ["24"])),
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("color", ["red"]),
+                category_tasks.basic_rule("size", ["32"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("color", ["green"]),
+                category_tasks.basic_rule("size", ["32"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("color", ["yellow"]),
+                category_tasks.basic_rule("size", ["24"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("color", ["ocean"]),
                 category_tasks.basic_rule("size", ["16"])),
             ]
     
@@ -249,17 +313,19 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             meta_map_train_tasks=self.meta_map_train_tasks,
             meta_map_eval_tasks=self.meta_map_eval_tasks) 
 
+        # and the base data points
+        self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
+
     def fill_buffers(self, num_data_points=1):
         del num_data_points  # don't actually use in this version
         this_tasks = self.base_train_tasks + self.base_eval_tasks 
         for t in this_tasks:
-            buff = self.memory_buffers[polynomials.stringify_polynomial(t)]
-            x_data = np.zeros([num_data_points] + self.architecture_config["input_shape"])
-            y_data = np.zeros([num_data_points] + self.architecture_config["output_shape"])
-            for point_i in range(num_data_points):
-                point = t.family.sample_point(val_range=self.run_config["point_val_range"])
-                x_data[point_i, :] = point
-                y_data[point_i, :] = t.evaluate(point)
+            buff = self.memory_buffers[str(t)]
+            x_data = np.zeros([96] + self.architecture_config["input_shape"])
+            y_data = np.zeros([96] + self.architecture_config["output_shape"])
+            for i, inst in enumerate(self.all_concept_instances):
+                x_data[i, :, :, :] = inst.image
+                y_data[i] = t.apply(inst)
             buff.insert(x_data, y_data)
 
     def build_feed_dict(self, task, lr=None, fed_embedding=None,
@@ -283,8 +349,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             neg_indices = np.argwhere(np.logical_not(outputs)) 
             num_pos = len(pos_indices)
             num_neg = len(neg_indices)
-            np.shuffle(pos_indices)
-            np.shuffle(neg_indices)
+            np.random.shuffle(pos_indices)
+            np.random.shuffle(neg_indices)
             if num_pos > num_neg:
                 small_set_size = min(num_neg//2, self.meta_batch_size//2)
                 pos_indices = pos_indices[:self.meta_batch_size - small_set_size]
@@ -293,11 +359,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 small_set_size = min(num_pos//2, self.meta_batch_size//2)
                 pos_indices = pos_indices[:small_set_size]
                 neg_indices = pos_indices[:self.meta_batch_size - small_set_size]
-            indices = pos_indices + neg_indices 
-            mask[indices] = True
+
+            mask[pos_indices] = True
+            mask[neg_indices] = True
             feed_dict[self.guess_input_mask_ph] = mask 
         else:   # meta dicts are the same
-            feed_dict = super(grids_HoMM_agent, self).build_feed_dict(
+            return super(category_HoMM_model, self).build_feed_dict(
                 task=task, lr=lr, fed_embedding=fed_embedding, call_type=original_call_type)
 
         if call_type == "fed":
@@ -320,6 +387,13 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 feed_dict[self.lang_keep_prob_ph] = 1.
 
         return feed_dict
+
+    def get_new_memory_buffer(self):
+        """Can be overriden by child"""
+        return memory_buffer(length=self.architecture_config["memory_buffer_size"],
+                             input_shape=self.architecture_config["input_shape"],
+                             outcome_width=self.architecture_config["output_shape"][0])
+
 
 
 ## running stuff
