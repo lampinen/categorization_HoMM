@@ -71,8 +71,7 @@ loss_d = loss_d %>%
   filter(epoch %% 100 == 0) %>%
   gather(task_and_train_or_eval, loss, -epoch, -run, -run_type) %>%
   separate(task_and_train_or_eval, c("task", "train_or_eval"), sep=":") %>%
-  mutate(train_or_eval = sub("\\.[0-9]+", "", train_or_eval),
-         meta = grepl("is|permute|add|mult|square", task))
+  mutate(meta = grepl("is_|switch_|^NOT$", task))
   
 ```
 
@@ -80,7 +79,13 @@ loss_d = loss_d %>%
 meta_true_d = meta_true_d %>%
   filter(epoch %% 100 == 0) %>%
   gather(task, loss, -epoch, -run, -run_type) %>%
-  separate(task, c("meta_task", "mapping_toe", "base_task_toe", "source", "target"), ":|->")
+  separate(task, c("meta_task", "mapping_toe", "base_task_toe", "source", "target"), ":|->") %>%
+  mutate(meta_task_type = case_when(meta_task == "NOT" ~ "NOT",
+                                    grepl("switch_color", meta_task) ~ "switch_color",
+                                    grepl("switch_shape", meta_task) ~ "switch_shape",
+                                    grepl("switch_size", meta_task) ~ "switch_size"),
+         base_task_type = case_when(grepl("AND|OR|XOR", source) ~ "composite",
+                                    T ~ "basic"))
   
 ```
 
@@ -95,8 +100,7 @@ ggplot(loss_d,
        aes(x=epoch, y=loss, color=train_or_eval)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_grid(run_type ~ meta) +
-  ylim(NA, 10)
+  facet_grid(run_type ~ meta) 
 ```
 
 ```{r}
@@ -104,14 +108,14 @@ ggplot(meta_true_d,
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_wrap(~run_type)
+  facet_grid(meta_task_type ~ base_task_type, scales="free")
 ```
-
-
 
 ```{r}
-ggplot(loss_d %>% filter(grepl("persistent_10base", run_type), !meta),
-       aes(x=epoch, y=loss, linetype=train_or_eval, color=run_type)) +
+ggplot(meta_true_d,
+       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
-            fun.y="mean") 
+            fun.y="median") +
+  facet_grid(meta_task_type ~ base_task_type, scales="free")
 ```
+
