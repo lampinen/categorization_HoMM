@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "results/",
+    "output_dir": "results_2/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -31,7 +31,9 @@ run_config.update({
                       ],
 
     "refresh_mem_buffs_every": 100000000,  # no refreshing for us
-    "eval_every": 10,
+    "eval_every": 50,
+
+    "num_epochs": 1000000,
 })
 
 
@@ -260,8 +262,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:30]
-        eval_composite_tasks += composite_tasks[30:60]
+        train_composite_tasks += composite_tasks[:100]
+        eval_composite_tasks += composite_tasks[100:150]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks

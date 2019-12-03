@@ -85,7 +85,7 @@ class basic_rule(object):
             return lambda inst: inst.size in self.accepted_list
 
     def __str__(self):
-        return "{}:{}".format(self.attribute_type, "&".join(sorted(self.accepted_list)))
+        return "{}={}".format(self.attribute_type, "&".join(sorted(self.accepted_list)))
 
     def __eq__(self, other):
         return isinstance(other, basic_rule) and self.attribute_type == other.attribute_type and self.accepted_list == other.accepted_list
@@ -114,7 +114,7 @@ class composite_rule(object):
         return self.compiled_rule(instance)
 
     def __str__(self):
-        return "{}({}, {})".format(self.rule_type, 
+        return "{}(({})&({}))".format(self.rule_type, 
                                    str(self.rule_a),
                                    str(self.rule_b))
 
