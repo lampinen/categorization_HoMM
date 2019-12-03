@@ -158,22 +158,22 @@ def _and_to_or(rule):
 def _negated(rule):
     if isinstance(rule, basic_rule):
         if rule.attribute_type == "shape":
-            new_accepted_list = [x for x in BASIC_SHAPES if x not in rule.accepted_list] 
+            new_accepted_list = [x for x in BASE_SHAPES if x not in rule.accepted_list] 
         elif rule.attribute_type == "color":
-            new_accepted_list = [x for x in BASIC_COLORS.keys() if x not in rule.accepted_list] 
+            new_accepted_list = [x for x in BASE_COLORS.keys() if x not in rule.accepted_list] 
         else: 
-            new_accepted_list = [x for x in BASIC_SIZES if x not in rule.accepted_list] 
+            new_accepted_list = [x for x in BASE_SIZES if x not in rule.accepted_list] 
         return basic_rule(attribute_type=rule.attribute_type,
                           accepted_list=new_accepted_list)
     else:
         result_a = _negated(rule.rule_a)
         result_b = _negated(rule.rule_b)
         if rule.rule_type == "OR":
-            new_rule_type == "AND"
+            new_rule_type = "AND"
         elif rule.rule_type == "AND":
-            new_rule_type == "OR"
+            new_rule_type = "OR"
         else:
-            new_rule_type == "XOR"
+            new_rule_type = "XOR"
             result_b = rule.rule_b  # NXOR(A, B) = XOR(!A, B)
     return composite_rule(new_rule_type, result_a, result_b)
         
@@ -181,7 +181,14 @@ def _negated(rule):
 def _switch_basic_attribute_inner(rule, target_attribute_type, pairs):
     if isinstance(rule, basic_rule):
         if rule.attribute_type == target_attribute_type:
-            new_accepted_list = [x for x in BASIC_SHAPES if x not in rule.accepted_list] 
+            new_accepted_list = []
+            for x in rule.accepted_list:
+                if x in pairs:
+                    new_accepted_list.append(pairs[x])
+                else:
+                    new_accepted_list.append(x)
+            return basic_rule(attribute_type=rule.attribute_type,
+                              accepted_list=new_accepted_list)
         else:
             return rule 
     else:
@@ -198,18 +205,26 @@ def _switch_basic_attribute(rule, target_attribute_type, pairs):
                 if x in pairs:
                     new_accepted_list.append(pairs[x])
                 else:
-            new_accepted_list = [x for x in rule.accepted_list] 
+                    new_accepted_list.append(x)
+            return basic_rule(attribute_type=rule.attribute_type,
+                              accepted_list=new_accepted_list)
         else:
             return None
     else:
-        result_a = _switch_basic_attribute(rule.rule_a)
-        result_b = _switch_basic_attribute(rule.rule_b)
+        result_a = _switch_basic_attribute(rule.rule_a, target_attribute_type, 
+                                           pairs)
+        result_b = _switch_basic_attribute(rule.rule_b, target_attribute_type,
+                                           pairs)
         if result_a is None and result_b is None:
             return None
         if result_a is None:
-            result_a = _switch_basic_attribute_inner(rule.rule_a)
+            result_a = _switch_basic_attribute_inner(rule.rule_a, 
+                                                     target_attribute_type,
+                                                     pairs)
         if result_b is None:
-            result_b = _switch_basic_attribute_inner(rule.rule_b)
+            result_b = _switch_basic_attribute_inner(rule.rule_b,
+                                                     target_attribute_type,
+                                                     pairs)
         return composite_rule(rule.rule_type, result_a, result_b)
 
 
@@ -235,12 +250,12 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
             if classification_type == "composite":
                 meta_mapping = lambda rule: isinstance(rule, composite_rule)
             elif classification_type[:10] == "basic_rule":
-                attribute_type == classification_type[11:]  # skip underscore
+                attribute_type = classification_type[11:]  # skip underscore
                 meta_mapping = lambda rule: isinstance(rule, basic_rule) and rule.attribute_type == attribute_type 
             elif classification_type[:8] == "relevant":
-                attribute_type == classification_type[9:]
+                attribute_type = classification_type[9:]
                 def meta_mapping(rule):
-                    if isinstance(rule, basic_rule)
+                    if isinstance(rule, basic_rule):
                         return rule.attribute_type == attribute_type 
                     else: 
                         return meta_mapping(rule.rule_a) or meta_mapping(rule.rule_b)
@@ -255,16 +270,16 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
                                                  ["train", "eval"]):
                 for task in curr_tasks:
                     res = meta_mapping(task)
-                    meta_pairings[mt][train_or_eval].append(stringify(task), 1. * res)
+                    meta_pairings[mt][train_or_eval].append((str(task), 1. * res))
 
         else:
             for task in base_train_tasks:
                 res = meta_mapping(task)
                 if res is not None:
                     if res in base_train_tasks:
-                        meta_pairings[mt]["train"].append(stringify(task)
+                        meta_pairings[mt]["train"].append((str(task), str(res)))
                     else:
-                        meta_pairings[mt]["eval"].append(stringify(task)
+                        meta_pairings[mt]["eval"].append((str(task), str(res)))
 
     return meta_pairings
 
@@ -277,7 +292,6 @@ if __name__ == "__main__":
     tasks.append(composite_rule("XOR", tasks[1], tasks[2]))
     tasks.append(composite_rule("AND", tasks[1], tasks[2]))
     tasks.append(composite_rule("AND", tasks[-2], tasks[-1]))  # always false
-        
     for t in tasks:
         print(t)
         for s in BASE_SHAPES:
@@ -285,5 +299,18 @@ if __name__ == "__main__":
                 for c in BASE_COLORS.keys():
                     inst = categorization_instance(s, c, sz)
                     print(inst, t.apply(inst))
-#                plt.imshow(inst.image)
-#                plt.show()
+                plt.imshow(inst.image)
+                plt.show()
+
+    print(_negated(tasks[1]))
+    print(_negated(tasks[3]))
+    print(_and_to_or(tasks[1]))
+    print(_and_to_or(tasks[3]))
+    print(_switch_basic_attribute(tasks[1], "color", {"red": "blue"}))
+    print(_switch_basic_attribute(tasks[3], "color", {"red": "blue"}))
+    print()
+    pairs = get_meta_pairings(tasks[:-1], tasks[-1:], ["is_basic_rule_color", "is_basic_rule_size", "is_relevant_color", "is_relevant_shape", "is_OR", "is_XOR"], [], ["NOT", "AND_to_OR", "switch_color_red~blue", "switch_shape_triangle~square_circle~plus"], []) 
+    for k, v in pairs.items():
+        print(k)
+        print(v)
+        
