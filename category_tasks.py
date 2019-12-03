@@ -69,7 +69,7 @@ class categorization_instance(object):
 class basic_rule(object):
     def __init__(self, attribute_type, accepted_list):
         self.attribute_type = attribute_type
-        self.accepted_list = accepted_list
+        self.accepted_list = set(accepted_list)
         self.compiled_rule = self._compile_rule_func()
 
     def apply(self, instance):
@@ -194,9 +194,9 @@ def _switch_basic_attribute_inner(rule, target_attribute_type, pairs):
         if rule.attribute_type == target_attribute_type:
             new_accepted_list = []
             for x in rule.accepted_list:
-                if x in pairs and pairs[x] not in new_accepted_list:
+                if x in pairs:
                     new_accepted_list.append(pairs[x])
-                elif x not in new_accepted_list:
+                else:
                     new_accepted_list.append(x)
             return basic_rule(attribute_type=rule.attribute_type,
                               accepted_list=new_accepted_list)
@@ -213,9 +213,9 @@ def switch_basic_attribute(rule, target_attribute_type, pairs):
         if rule.attribute_type == target_attribute_type:
             new_accepted_list = []
             for x in rule.accepted_list:
-                if x in pairs and pairs[x] not in new_accepted_list:
+                if x in pairs:
                     new_accepted_list.append(pairs[x])
-                elif x not in new_accepted_list:
+                else:
                     new_accepted_list.append(x)
             return basic_rule(attribute_type=rule.attribute_type,
                               accepted_list=new_accepted_list)
