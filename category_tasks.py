@@ -85,7 +85,7 @@ class basic_rule(object):
             return lambda inst: inst.size in self.accepted_list
 
     def __str__(self):
-        return "{}:{}".format(self.attribute_type, self.accepted_list)
+        return "{}:{}".format(self.attribute_type, sorted(self.accepted_list))
 
     def __eq__(self, other):
         return isinstance(other, basic_rule) and self.attribute_type == other.attribute_type and self.accepted_list == other.accepted_list
@@ -290,7 +290,7 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
                 if res is not None:
                     if res in base_train_tasks:
                         meta_pairings[mt]["train"].append((str(task), str(res)))
-                    else:
+                    elif res in base_eval_tasks:
                         meta_pairings[mt]["eval"].append((str(task), str(res)))
 
     return meta_pairings

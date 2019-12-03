@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 
 from itertools import combinations
 
@@ -14,9 +15,9 @@ run_config.update({
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
 
-    "meta_class_train": ["is_basic_rule_shape", "is_basic_rule_color", "is_basic_rule_size", "is_relevant_shape", "is_relevant_color", "is_relevant_size", "is_OR", "is_AND", "is_XOR"],
-    "meta_class_eval": [],
-    "meta_map_train": ["NOT",
+    "meta_class_train_tasks": ["is_basic_rule_shape", "is_basic_rule_color", "is_basic_rule_size", "is_relevant_shape", "is_relevant_color", "is_relevant_size", "is_OR", "is_AND", "is_XOR"],
+    "meta_class_eval_tasks": [],
+    "meta_map_train_tasks": ["NOT",
                        # color switching (a subset)
                        "switch_color_red~blue", "switch_color_blue~red", "switch_color_blue~yellow", "switch_color_yellow~blue", "switch_color_red~green", "switch_color_green~red", "switch_color_yellow~green", "switch_color_green~yellow", "switch_color_green~pink", "switch_color_pink~green", "switch_color_ocean~cyan", "switch_color_green~purple", "switch_color_purple~red", "switch_color_cyan~pink", "switch_color_pink~ocean", "switch_color_ocean~pink", 
                        # shape_switching (all except holdouts)
@@ -24,7 +25,7 @@ run_config.update({
                        # size switching (all except holdouts)
                        "switch_size_16~24", "switch_size_24~16", "switch_size_24~32", "switch_size_32~24",
                        ],
-    "meta_map_eval": ["switch_color_yellow~purple", #"switch_color_purple~yellow",
+    "meta_map_eval_tasks": ["switch_color_yellow~purple", #"switch_color_purple~yellow",
                       "switch_shape_plus~circle", #"switch_shape_circle~plus",
                       "switch_size_16~32", #"switch_size_32~16", 
                       ],
@@ -35,7 +36,7 @@ run_config.update({
 
 architecture_config = default_architecture_config.default_architecture_config
 architecture_config.update({
-   "input_shape": [91, 91, 3],
+   "input_shape": [32, 32, 3],
    "output_shape": [1],
 
     "IO_num_hidden": 256,
@@ -58,26 +59,30 @@ def vision(processed_input, z_dim, reuse=False):
     with tf.variable_scope("vision", reuse=reuse):
         for num_filt, kernel, stride in [[32, 4, 2],
                                          [64, 4, 2],
-                                         [64, 2, 1]]:
+                                         [64, 2, 2]]:
             vh = slim.conv2d(vh,
                              num_outputs=num_filt,
                              kernel_size=kernel,
                              stride=stride,
                              padding="VALID",
                              activation_fn=tf.nn.relu)
-            print(vh)
         vh = slim.flatten(vh)
         vision_out = slim.fully_connected(vh, z_dim,
                                           activation_fn=None)
     return vision_out
 
 
+def xe_loss(output_logits, targets):
+    return tf.nn.sigmoid_cross_entropy_with_logits(logits=output_logits,
+                                                   labels=targets)
+
+
 class category_HoMM_model(HoMM_model.HoMM_model):
     def __init__(self, run_config=None):
         super(category_HoMM_model, self).__init__(
             architecture_config=architecture_config, run_config=run_config,
-            input_processor=lambda x: vision(x, architecture_config["z_dim"],
-            base_loss=))
+            input_processor=lambda x: vision(x, architecture_config["z_dim"]),
+            base_loss=xe_loss)
 
     def _pre_build_calls(self):
         # have one task in which each attribute value is "seen"
@@ -88,7 +93,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         # and sampling of subsets trained and held out, but sampled to leave some interesting eval tasks 
         color_pair_tasks = [category_tasks.basic_rule("color", [x, y]) for x, y in combinations(category_tasks.BASE_COLORS.keys(), 2)]  
-        train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [["red", "green"], ["blue", "yellow"], ["pink", "cyan"], ["purple", "ocean"]]
+        train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
         run_config["base_train_tasks"] += train_color_pair_tasks 
 
         train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"])]
@@ -119,6 +124,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             r,
             category_tasks.basic_rule("color", [c]),
             category_tasks.basic_rule("size", [sz])) for sz in sizes for c in colors for r in rules]
+
+        composite_tasks = sc_composite_tasks + ssz_composite_tasks + csz_composite_tasks
 
         train_composite_tasks = [
             category_tasks.composite_rule(
@@ -214,8 +221,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_negations += negated_train_shape_pair_tasks[:-2]
         eval_negations += negated_train_shape_pair_tasks[-2:]
 
-        train_negations.append(negated(category_tasks.basic_rule("size", [16, 24])))
-        eval_negations.append(negated(category_tasks.basic_rule("size", [16, 32])))
+        train_negations.append(category_tasks.negated(category_tasks.basic_rule("size", [16, 24])))
+        eval_negations.append(category_tasks.negated(category_tasks.basic_rule("size", [16, 32])))
 
         negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
         np.random.shuffle(negated_train_composite_tasks)
@@ -278,7 +285,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             num_neg = len(neg_indices)
             np.shuffle(pos_indices)
             np.shuffle(neg_indices)
-            elif num_pos > num_neg:
+            if num_pos > num_neg:
                 small_set_size = min(num_neg//2, self.meta_batch_size//2)
                 pos_indices = pos_indices[:self.meta_batch_size - small_set_size]
                 neg_indices = neg_indices[:small_set_size]
