@@ -1,3 +1,3 @@
 # Categorization HoMM
 
-A new meta-mapping twist on classic multi-dimension category learning cognitive tasks.
+A new meta-mapping twist on classic multi-dimension concept learning/categorization cognitive tasks.

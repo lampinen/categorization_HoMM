@@ -20,7 +20,7 @@ BASE_COLORS = {
     #"orange": (1., 0.6, 0.),
     #"forest": (0., 0.5, 0.),
 }
-BASE_SIZES = [16, 24, 32]
+BASE_SIZES = ["16", "24", "32"]
 
 RENDER_SIZE = 32 
 
@@ -28,6 +28,7 @@ BASE_COLORS = {n: np.array(c, dtype=np.float32) for n, c in BASE_COLORS.items()}
 
 def _render_plain_shape(name, size):
     """Shape without color dimension"""
+    size = int(size)
     shape = np.zeros([size, size], np.float32)
     if name == "square":
         shape[:, :] = 1.
