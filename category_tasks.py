@@ -51,7 +51,7 @@ def _render_plain_shape(name, size):
 
 _base_templates = {(s, sz): _render_plain_shape(s, sz) for s in BASE_SHAPES for sz in BASE_SIZES} 
 
-def render_uncolored_shpae(name, size):
+def render_uncolored_shape(name, size):
     template = _base_templates[(name, size)]
     angle = np.random.randint(-180, 180)
     shape = scipy.ndimage.rotate(template, angle, order=1)
