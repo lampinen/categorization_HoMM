@@ -46,11 +46,16 @@ def _render_plain_shape(name, size):
     elif name == "plus":
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 1.
         shape[size // 2 - size // 6: size // 2 + size //6 + 1, :] = 1.
+    return shape
 
+
+_base_templates = {(s, sz): _render_plain_shape(s, sz) for s in BASE_SHAPES for sz in BASE_SIZES} 
+
+def render_uncolored_shpae(name, size):
+    template = _base_templates[(name, size)]
     angle = np.random.randint(-180, 180)
-    shape = scipy.ndimage.rotate(shape, angle, order=1)
+    shape = scipy.ndimage.rotate(template, angle, order=1)
     new_size = shape.shape
-    print(new_size)
     image = np.zeros([RENDER_SIZE, RENDER_SIZE], np.float32)
     offset_x = np.random.randint(0, RENDER_SIZE - new_size[0])
     offset_y = np.random.randint(0, RENDER_SIZE - new_size[1])
@@ -67,7 +72,7 @@ class categorization_instance(object):
         self.size = size
 
     def render(self):
-        plain_image = _render_plain_shape(self.shape, self.size) 
+        plain_image = render_uncolored_shape(self.shape, self.size) 
         image = plain_image[:, :, None] * self.raw_color[None, None, :]
         return image
 
