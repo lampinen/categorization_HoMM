@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import scipy.ndimage
 
 import matplotlib.pyplot as plt
 
@@ -22,12 +23,12 @@ BASE_COLORS = {
 }
 BASE_SIZES = ["16", "24", "32"]
 
-RENDER_SIZE = 32 
+RENDER_SIZE = 50 
 
 BASE_COLORS = {n: np.array(c, dtype=np.float32) for n, c in BASE_COLORS.items()} 
 
 def _render_plain_shape(name, size):
-    """Shape without color dimension"""
+    """Shape without color dimension, at random rotation and position."""
     size = int(size)
     shape = np.zeros([size, size], np.float32)
     if name == "square":
@@ -45,9 +46,16 @@ def _render_plain_shape(name, size):
     elif name == "plus":
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 1.
         shape[size // 2 - size // 6: size // 2 + size //6 + 1, :] = 1.
+
+    angle = np.random.randint(-180, 180)
+    shape = scipy.ndimage.rotate(shape, angle, order=1)
+    new_size = shape.shape
+    print(new_size)
     image = np.zeros([RENDER_SIZE, RENDER_SIZE], np.float32)
-    offset = (RENDER_SIZE - size) // 2
-    image[offset:offset + size, offset:offset + size] = shape
+    offset_x = np.random.randint(0, RENDER_SIZE - new_size[0])
+    offset_y = np.random.randint(0, RENDER_SIZE - new_size[1])
+    image[offset_x:offset_x + new_size[0], 
+          offset_y:offset_y + new_size[1]] = shape
     return image 
 
 
@@ -55,10 +63,13 @@ class categorization_instance(object):
     def __init__(self, shape, color, size):
         self.shape = shape
         self.color = color
+        self.raw_color = BASE_COLORS[self.color]
         self.size = size
-        plain_image = _render_plain_shape(shape, size) 
-        raw_color = BASE_COLORS[color]
-        self.image = plain_image[:, :, None] * raw_color[None, None, :]
+
+    def render(self):
+        plain_image = _render_plain_shape(self.shape, self.size) 
+        image = plain_image[:, :, None] * self.raw_color[None, None, :]
+        return image
 
     def __str__(self):
         return "{}_{}_{}".format(self.shape, self.color, self.size)
@@ -311,7 +322,7 @@ if __name__ == "__main__":
                 for c in BASE_COLORS.keys():
                     inst = categorization_instance(s, c, sz)
                     print(inst, t.apply(inst))
-                plt.imshow(inst.image)
+                plt.imshow(inst.render())
                 plt.show()
 
     print(negated(tasks[1]))
