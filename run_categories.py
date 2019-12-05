@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "results_2/",
+    "output_dir": "results_7/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -30,7 +30,9 @@ run_config.update({
                       "switch_size_16~32", #"switch_size_32~16", 
                       ],
 
-    "refresh_mem_buffs_every": 100000000,  # no refreshing for us
+    "multiplicity": 2,  # how many different renders of each object to put in memory
+
+    "refresh_mem_buffs_every": 100,
     "eval_every": 50,
 
     "num_epochs": 1000000,
@@ -39,20 +41,20 @@ run_config.update({
 
 architecture_config = default_architecture_config.default_architecture_config
 architecture_config.update({
-   "input_shape": [32, 32, 3],
+   "input_shape": [50, 50, 3],
    "output_shape": [1],
 
-    "IO_num_hidden": 256,
+    "IO_num_hidden": 128,
     "M_num_hidden": 512,
     "H_num_hidden": 512,
     "z_dim": 512,
     "F_num_hidden": 64,
     "optimizer": "RMSProp",
 
-    "meta_batch_size": 40,
-    "meta_holdout_size": 20,
+    "meta_batch_size": 50,
+#    "meta_holdout_size": 30,
 
-    "memory_buffer_size": 96,
+    "memory_buffer_size": 192,
 })
 
 
@@ -94,15 +96,17 @@ class memory_buffer(object):
 def vision(processed_input, z_dim, reuse=False):
     vh = processed_input
     with tf.variable_scope("vision", reuse=reuse):
-        for num_filt, kernel, stride in [[32, 4, 2],
-                                         [64, 4, 2],
-                                         [64, 2, 2]]:
+        for num_filt, kernel, stride, mp in [[32, 5, 2, False],
+                                             [64, 4, 2, True],
+                                             [128, 2, 2, False]]:
             vh = slim.conv2d(vh,
                              num_outputs=num_filt,
                              kernel_size=kernel,
                              stride=stride,
                              padding="VALID",
                              activation_fn=tf.nn.relu)
+            if mp:
+                vh = slim.max_pool2d(vh, [2, 2], padding="SAME")
         vh = slim.flatten(vh)
         vision_out = slim.fully_connected(vh, z_dim,
                                           activation_fn=None)
@@ -320,14 +324,18 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
     def fill_buffers(self, num_data_points=1):
         del num_data_points  # don't actually use in this version
+        multiplicity = self.run_config["multiplicity"]
         this_tasks = self.base_train_tasks + self.base_eval_tasks 
         for t in this_tasks:
             buff = self.memory_buffers[str(t)]
-            x_data = np.zeros([96] + self.architecture_config["input_shape"])
-            y_data = np.zeros([96] + self.architecture_config["output_shape"])
+            x_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["input_shape"])
+            y_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["output_shape"])
             for i, inst in enumerate(self.all_concept_instances):
-                x_data[i, :, :, :] = inst.image
-                y_data[i] = t.apply(inst)
+                label = t.apply(inst)
+                index_offset = i * multiplicity
+                for j in range(multiplicity):
+                    x_data[index_offset + j, :, :, :] = inst.render()
+                y_data[index_offset:index_offset + multiplicity] = label 
             buff.insert(x_data, y_data)
 
     def build_feed_dict(self, task, lr=None, fed_embedding=None,
@@ -347,6 +355,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             feed_dict[self.base_input_ph] = inputs
             feed_dict[self.base_target_ph] = outputs
             mask = np.zeros(len(outputs), dtype=np.bool)
+            # TODO: don't include all for more stochasticity?
             pos_indices = np.argwhere(outputs) 
             neg_indices = np.argwhere(np.logical_not(outputs)) 
             num_pos = len(pos_indices)
