@@ -12,7 +12,8 @@ library(tidyverse)
 
 ```{r}
 parent_dir = ".."
-subdirs = c("results")
+subdirs = c("results_2", #"results_3", "results_4",
+            "results_5", "results_6", "results_7", "results_8", "results_9")
 num_runs = 1
 ```
 
@@ -71,7 +72,12 @@ loss_d = loss_d %>%
   filter(epoch %% 100 == 0) %>%
   gather(task_and_train_or_eval, loss, -epoch, -run, -run_type) %>%
   separate(task_and_train_or_eval, c("task", "train_or_eval"), sep=":") %>%
-  mutate(meta = grepl("is_|switch_|^NOT$", task))
+  mutate(meta = grepl("is_|switch_|^NOT$", task),
+         meta_task_type = case_when(!meta ~ "NA",
+                                    task == "NOT" ~ "NOT",
+                                    grepl("switch_color", task) ~ "switch_color",
+                                    grepl("switch_shape", task) ~ "switch_shape",
+                                    grepl("switch_size", task) ~ "switch_size"))
   
 ```
 
@@ -100,7 +106,16 @@ ggplot(loss_d,
        aes(x=epoch, y=loss, color=train_or_eval)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_grid(run_type ~ meta) 
+  facet_grid(run_type ~ meta, scales="free") 
+```
+
+```{r}
+ggplot(loss_d %>%
+         filter(meta),
+       aes(x=epoch, y=loss, color=train_or_eval)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(run_type ~ meta_task_type, scales="free") 
 ```
 
 ```{r}
@@ -108,7 +123,7 @@ ggplot(meta_true_d,
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_grid(meta_task_type ~ base_task_type, scales="free")
+  facet_grid(meta_task_type ~ base_task_type + run_type, scales="free")
 ```
 
 ```{r}
@@ -116,6 +131,6 @@ ggplot(meta_true_d,
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="median") +
-  facet_grid(meta_task_type ~ base_task_type, scales="free")
+  facet_grid(meta_task_type ~ base_task_type + run_type, scales="free")
 ```
 
