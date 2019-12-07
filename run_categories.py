@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "results_7/",
+    "output_dir": "results_10/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -32,8 +32,9 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 100,
-    "eval_every": 50,
+    "refresh_mem_buffs_every": 5,
+    "eval_every": 20,
+    "lr_decays_every": 300,
 
     "num_epochs": 1000000,
 })
@@ -51,7 +52,7 @@ architecture_config.update({
     "F_num_hidden": 64,
     "optimizer": "RMSProp",
 
-    "meta_batch_size": 50,
+    "meta_batch_size": 40,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 192,
