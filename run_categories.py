@@ -295,8 +295,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_negations += negated_train_shape_pair_tasks[:-2]
         eval_negations += negated_train_shape_pair_tasks[-2:]
 
-        train_negations.append(category_tasks.negated(category_tasks.basic_rule("size", [16, 24])))
-        eval_negations.append(category_tasks.negated(category_tasks.basic_rule("size", [16, 32])))
+        train_negations.append(category_tasks.negated(category_tasks.basic_rule("size", ["16", "24"])))
+        eval_negations.append(category_tasks.negated(category_tasks.basic_rule("size", ["16", "32"])))
 
         negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
         np.random.shuffle(negated_train_composite_tasks)
@@ -356,27 +356,25 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         if base_or_meta == "base":
             task_name, memory_buffer, task_index = self.base_task_lookup(task)
             inputs, outputs = self.sample_from_memory_buffer(memory_buffer)
-            feed_dict[self.base_input_ph] = inputs
-            feed_dict[self.base_target_ph] = outputs
             mask = np.zeros(len(outputs), dtype=np.bool)
-            # TODO: don't include all for more stochasticity?
             pos_indices = np.argwhere(outputs) 
             neg_indices = np.argwhere(np.logical_not(outputs)) 
             num_pos = len(pos_indices)
             num_neg = len(neg_indices)
             np.random.shuffle(pos_indices)
             np.random.shuffle(neg_indices)
-            if num_pos > num_neg:
-                small_set_size = min(num_neg//2, self.meta_batch_size//2)
-                pos_indices = pos_indices[:self.meta_batch_size - small_set_size]
-                neg_indices = neg_indices[:small_set_size]
-            else:
-                small_set_size = min(num_pos//2, self.meta_batch_size//2)
-                pos_indices = pos_indices[:small_set_size]
-                neg_indices = pos_indices[:self.meta_batch_size - small_set_size]
+            small_set_size = min(num_neg, num_pos, self.meta_batch_size//2)
+            pos_indices = pos_indices[:small_set_size, 0]
+            neg_indices = neg_indices[:small_set_size, 0]
+        
+            all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
 
-            mask[pos_indices] = True
-            mask[neg_indices] = True
+            feed_dict[self.base_input_ph] = inputs[all_inds]
+            feed_dict[self.base_target_ph] = outputs[all_inds]
+
+            # take half the pos and half the neg to be the meta-net samples
+            mask[:small_set_size//2] = True
+            mask[-small_set_size//2:] = True
             feed_dict[self.guess_input_mask_ph] = mask 
         else:   # meta dicts are the same
             return super(category_HoMM_model, self).build_feed_dict(
