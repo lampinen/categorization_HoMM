@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_5/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_13/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -47,7 +47,6 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 3e-8,
 
-
     "num_epochs": 1000000,
 })
 
@@ -59,7 +58,7 @@ architecture_config.update({
 
     "IO_num_hidden": 512,
     "M_num_hidden": 512,
-    "H_num_hidden": 256,
+    "H_num_hidden": 512,
     "z_dim": 512,
     "F_num_hidden": 64,
     "optimizer": "Adam",
@@ -68,6 +67,10 @@ architecture_config.update({
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 192,
+
+    "vision_layers": [[32, 5, 2, False],
+                      [64, 4, 2, True],
+                      [64, 2, 2, False]],
 })
 
 
@@ -106,20 +109,20 @@ class memory_buffer(object):
 
 
 # architecture 
-def vision(processed_input, z_dim, IO_num_hidden, reuse=False):
+def vision(processed_input, z_dim, IO_num_hidden, vision_layers, reuse=False):
     vh = processed_input
     with tf.variable_scope("vision", reuse=reuse):
-        for num_filt, kernel, stride, mp in [[32, 5, 2, False],
-                                             [64, 4, 2, True],
-                                             [64, 2, 2, False]]:
+        for num_filt, kernel, stride, mp in vision_layers:
             vh = slim.conv2d(vh,
                              num_outputs=num_filt,
                              kernel_size=kernel,
                              stride=stride,
                              padding="VALID",
                              activation_fn=tf.nn.leaky_relu)
+            print(vh)
             if mp:
                 vh = slim.max_pool2d(vh, [2, 2], padding="SAME")
+                print(vh)
         vh = slim.flatten(vh)
         vh = slim.fully_connected(vh, IO_num_hidden,
                                   activation_fn=tf.nn.leaky_relu)
@@ -139,7 +142,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         super(category_HoMM_model, self).__init__(
             architecture_config=architecture_config, run_config=run_config,
             input_processor=lambda x: vision(x, architecture_config["z_dim"],
-                                             architecture_config["IO_num_hidden"]),
+                                             architecture_config["IO_num_hidden"],
+                                             architecture_config["vision_layers"]),
             base_loss=xe_loss)
 
     def _pre_build_calls(self):
