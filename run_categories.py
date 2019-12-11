@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_2/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_5/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -32,20 +32,20 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 5,
+    "refresh_mem_buffs_every": 20,
     "eval_every": 20,
     "lr_decays_every": 300,
 
     "init_learning_rate": 1e-5,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 3e-6,  # for meta-classification and mappings
+    "init_meta_learning_rate": 3e-7,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-#    "min_learning_rate": 3e-8,  # can't decay past these minimum values 
+    "min_learning_rate": 3e-8,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-#    "min_meta_learning_rate": 1e-7,
+    "min_meta_learning_rate": 3e-8,
 
 
     "num_epochs": 1000000,
@@ -59,10 +59,10 @@ architecture_config.update({
 
     "IO_num_hidden": 512,
     "M_num_hidden": 512,
-    "H_num_hidden": 512,
+    "H_num_hidden": 256,
     "z_dim": 512,
     "F_num_hidden": 64,
-    "optimizer": "RMSProp",
+    "optimizer": "Adam",
 
     "meta_batch_size": 30,
 #    "meta_holdout_size": 30,
@@ -419,6 +419,28 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                              input_shape=self.architecture_config["input_shape"],
                              outcome_width=self.architecture_config["output_shape"][0])
 
+    def _pre_loss_calls(self):
+        def _logits_to_accuracy(x, labels=self.base_target_ph):
+            vals = (1. + tf.math.sign(x)) / 2.
+            return tf.reduce_mean(tf.cast(tf.equal(vals, labels),
+                                          tf.float32)) 
+        self.base_accuracy = _logits_to_accuracy(self.base_output)
+        self.base_fed_emb_accuracy =  _logits_to_accuracy(self.base_fed_emb_output)
+        self.base_cached_emb_accuracy = _logits_to_accuracy(self.base_cached_emb_output)
+
+    def base_eval(self, task, train_or_eval):
+        feed_dict = self.build_feed_dict(task, call_type="base_cached_eval")
+        fetches = [self.total_base_cached_emb_loss, self.base_cached_emb_accuracy]
+        res = self.sess.run(fetches, feed_dict=feed_dict)
+        name = str(task)
+        return [name + "_loss:" + train_or_eval,
+                name + "_accuracy:" + train_or_eval], res
+
+    def base_embedding_eval(self, embedding, task):
+        feed_dict = self.build_feed_dict(task, fed_embedding=embedding, call_type="base_fed_eval")
+        fetches = [self.base_fed_emb_accuracy]
+        res = self.sess.run(fetches, feed_dict=feed_dict)
+        return res
 
 
 ## running stuff
