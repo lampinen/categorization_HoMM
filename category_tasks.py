@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 BASE_SHAPES = ["triangle", "square", 
                "plus", "circle", "tee",
-               "inverse_plus", "empty_square"]
+               "inverseplus", "emptysquare"]
 BASE_COLORS = {
     "red": (1., 0., 0.),
     "green": (0., 1., 0.),
