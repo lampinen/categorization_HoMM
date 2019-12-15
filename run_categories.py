@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_13/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_19/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -19,9 +19,9 @@ run_config.update({
     "meta_class_eval_tasks": [],
     "meta_map_train_tasks": ["NOT",
                        # color switching (a subset)
-                       "switch_color_red~blue", "switch_color_blue~red", "switch_color_blue~yellow", "switch_color_yellow~blue", "switch_color_red~green", "switch_color_green~red", "switch_color_yellow~green", "switch_color_green~yellow", "switch_color_green~pink", "switch_color_pink~green", "switch_color_ocean~cyan", "switch_color_green~purple", "switch_color_purple~red", "switch_color_cyan~pink", "switch_color_pink~ocean", "switch_color_ocean~pink", 
+                       "switch_color_red~blue", "switch_color_blue~red", "switch_color_blue~yellow", "switch_color_yellow~blue", "switch_color_red~green", "switch_color_green~red", "switch_color_yellow~green", "switch_color_green~yellow", "switch_color_green~pink", "switch_color_pink~green", "switch_color_ocean~cyan", "switch_color_green~purple", "switch_color_purple~red", "switch_color_cyan~pink", "switch_color_pink~ocean", "switch_color_ocean~pink", "switch_color_purple~cyan", "switch_color_yellow~cyan", "switch_color_ocean~purple",
                        # shape_switching (all except holdouts)
-                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square",
+                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus",
                        # size switching (all except holdouts)
                        "switch_size_16~24", "switch_size_24~16", "switch_size_24~32", "switch_size_32~24",
                        ],
@@ -32,20 +32,20 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 20,
+    "refresh_mem_buffs_every": 100,
     "eval_every": 20,
-    "lr_decays_every": 300,
+    "lr_decays_every": 50,
 
     "init_learning_rate": 1e-5,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 3e-7,  # for meta-classification and mappings
+    "init_meta_learning_rate": 3e-8,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-    "min_learning_rate": 3e-8,  # can't decay past these minimum values 
+    "min_learning_rate": 1e-9,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-    "min_meta_learning_rate": 3e-8,
+    "min_meta_learning_rate": 1e-9,
 
     "num_epochs": 1000000,
 })
@@ -63,14 +63,14 @@ architecture_config.update({
     "F_num_hidden": 64,
     "optimizer": "Adam",
 
-    "meta_batch_size": 30,
+    "meta_batch_size": 20,
 #    "meta_holdout_size": 30,
 
-    "memory_buffer_size": 192,
+    "memory_buffer_size": 336,
 
-    "vision_layers": [[32, 5, 2, False],
+    "vision_layers": [[64, 5, 2, False],
                       [64, 4, 2, True],
-                      [64, 2, 2, False]],
+                      [128, 2, 2, False]],
 })
 
 
@@ -286,8 +286,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:100]
-        eval_composite_tasks += composite_tasks[100:150]
+        train_composite_tasks += composite_tasks[:150]
+        eval_composite_tasks += composite_tasks[150:200]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
