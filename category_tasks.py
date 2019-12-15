@@ -8,7 +8,7 @@ import scipy.ndimage
 import matplotlib.pyplot as plt
 
 BASE_SHAPES = ["triangle", "square", 
-               "plus", "circle",
+               "plus", "circle", "tee",
                "inverse_plus", "empty_square"]
 BASE_COLORS = {
     "red": (1., 0., 0.),
@@ -47,6 +47,9 @@ def _render_plain_shape(name, size):
     elif name == "plus":
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 1.
         shape[size // 2 - size // 6: size // 2 + size //6 + 1, :] = 1.
+    elif name == "tee":
+        shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 1.
+        shape[:size // 3, :] = 1.
     elif name == "inverse_plus":
         shape[:, :] = 1.
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 0.
