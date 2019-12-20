@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_19/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_38/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -32,22 +32,23 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 100,
+    "refresh_mem_buffs_every": 10,
     "eval_every": 20,
-    "lr_decays_every": 50,
+    "lr_decays_every": 200,
 
-    "init_learning_rate": 1e-5,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 3e-8,  # for meta-classification and mappings
+    "init_learning_rate": 1e-4,  # initial learning rate for base tasks
+    "init_meta_learning_rate": 1e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-    "min_learning_rate": 1e-9,  # can't decay past these minimum values 
+    "min_learning_rate": 1e-8,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-    "min_meta_learning_rate": 1e-9,
+    "min_meta_learning_rate": 1e-8,
 
     "num_epochs": 1000000,
+    "note": "random angle range reduced"
 })
 
 
@@ -57,21 +58,29 @@ architecture_config.update({
    "output_shape": [1],
 
     "IO_num_hidden": 512,
-    "M_num_hidden": 512,
+    "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 64,
+    "F_num_hidden": 128,
     "optimizer": "Adam",
 
-    "meta_batch_size": 20,
+    "meta_batch_size": 30,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 336,
 
     "vision_layers": [[64, 5, 2, False],
-                      [64, 4, 2, True],
+                      [64, 4, 2, False],
+                      [128, 4, 2, False],
                       [128, 2, 2, False]],
 })
+
+if False:  # enable for persistent
+    architecture_config.update({
+        "persistent_task_reps": True,
+        "combined_emb_guess_weight": "varied",
+        "emb_match_loss_weight": 0.2,
+    })
 
 
 class memory_buffer(object):
