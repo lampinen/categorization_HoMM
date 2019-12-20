@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_43/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_44/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -61,13 +61,15 @@ architecture_config.update({
     "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 256,
+    "F_num_hidden": 128,
     "optimizer": "Adam",
 
     "meta_batch_size": 30,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 336,
+
+    "task_weight_weight_mult": 100.,
 
     "vision_layers": [[64, 5, 2, False],
                       [128, 4, 2, False],
@@ -381,7 +383,6 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         if base_or_meta == "base":
             task_name, memory_buffer, task_index = self.base_task_lookup(task)
             inputs, outputs = self.sample_from_memory_buffer(memory_buffer)
-            mask = np.zeros(len(outputs), dtype=np.bool)
             pos_indices = np.argwhere(outputs) 
             neg_indices = np.argwhere(np.logical_not(outputs)) 
             num_pos = len(pos_indices)
@@ -393,6 +394,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             neg_indices = neg_indices[:small_set_size, 0]
         
             all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
+            mask = np.zeros(len(all_inds), dtype=np.bool)
 
             feed_dict[self.base_input_ph] = inputs[all_inds]
             feed_dict[self.base_target_ph] = outputs[all_inds]
