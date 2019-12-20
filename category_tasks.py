@@ -26,6 +26,8 @@ BASE_SIZES = ["16", "24", "32"]
 
 RENDER_SIZE = 50 
 
+RANDOM_ANGLE_RANGE = 20
+
 BASE_COLORS = {n: np.array(c, dtype=np.float32) for n, c in BASE_COLORS.items()} 
 
 def _render_plain_shape(name, size):
@@ -66,7 +68,7 @@ _base_templates = {(s, sz): _render_plain_shape(s, sz) for s in BASE_SHAPES for 
 
 def render_uncolored_shape(name, size):
     template = _base_templates[(name, size)]
-    angle = np.random.randint(-180, 180)
+    angle = np.random.randint(-RANDOM_ANGLE_RANGE, RANDOM_ANGLE_RANGE)
     shape = scipy.ndimage.rotate(template, angle, order=1)
     new_size = shape.shape
     image = np.zeros([RENDER_SIZE, RENDER_SIZE], np.float32)
