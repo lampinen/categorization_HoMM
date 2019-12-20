@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_38/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_39/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -43,9 +43,9 @@ run_config.update({
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-    "min_learning_rate": 1e-8,  # can't decay past these minimum values 
+    "min_learning_rate": 1e-7,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-    "min_meta_learning_rate": 1e-8,
+    "min_meta_learning_rate": 1e-7,
 
     "num_epochs": 1000000,
     "note": "random angle range reduced"
@@ -70,9 +70,9 @@ architecture_config.update({
     "memory_buffer_size": 336,
 
     "vision_layers": [[64, 5, 2, False],
-                      [64, 4, 2, False],
-                      [128, 4, 2, False],
-                      [128, 2, 2, False]],
+                      [256, 4, 2, True],
+                      #[128, 4, 2, False],
+                      [512, 2, 2, True]],
 })
 
 if False:  # enable for persistent
@@ -140,10 +140,13 @@ def vision(processed_input, z_dim, IO_num_hidden, vision_layers, reuse=False):
     return vision_out
 
 
-def xe_loss(output_logits, targets):
+def xe_loss(output_logits, targets, backward_mask):  # xe only on held out examples
+    mask = tf.math.logical_not(backward_mask)
+    masked_logits = tf.boolean_mask(output_logits, mask)
+    masked_targets = tf.boolean_mask(targets, mask)
     return tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits(logits=output_logits,
-                                                labels=targets))
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=masked_logits,
+                                                labels=masked_targets))
 
 
 class category_HoMM_model(HoMM_model.HoMM_model):
@@ -153,7 +156,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             input_processor=lambda x: vision(x, architecture_config["z_dim"],
                                              architecture_config["IO_num_hidden"],
                                              architecture_config["vision_layers"]),
-            base_loss=xe_loss)
+            base_loss=lambda x, y: xe_loss(x, y, self.guess_input_mask_ph))
 
     def _pre_build_calls(self):
         # have one task in which each attribute value is "seen"
@@ -174,7 +177,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         # and eval tasks that target the meta-mappings, especially held-out ones:
         run_config["base_eval_tasks"] += [x for x in color_pair_tasks if x not in train_color_pair_tasks]
         run_config["base_eval_tasks"] += [category_tasks.basic_rule("shape", ["triangle", "circle"])] 
-        run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["32", "24"])] 
+        run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["24", "32"])] 
 
         # now feature-conjunctive tasks, part random, with targeted holdouts 
         colors = category_tasks.BASE_COLORS.keys()
@@ -320,9 +323,6 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_negations += negated_train_shape_pair_tasks[:-2]
         eval_negations += negated_train_shape_pair_tasks[-2:]
 
-        train_negations.append(category_tasks.negated(category_tasks.basic_rule("size", ["16", "24"])))
-        eval_negations.append(category_tasks.negated(category_tasks.basic_rule("size", ["16", "32"])))
-
         negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
         np.random.shuffle(negated_train_composite_tasks)
         train_negations += negated_train_composite_tasks[:-5]
@@ -414,6 +414,9 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         if call_type == "cached" or self.architecture_config["persistent_task_reps"]:
             feed_dict[self.task_index_ph] = [task_index]
 
+        if call_type != "standard" and train_or_eval == "eval":
+            feed_dict[self.guess_input_mask_ph] = np.zeros_like(feed_dict[self.guess_input_mask_ph])   # eval on all
+
         if train_or_eval == "train":
             feed_dict[self.lr_ph] = lr
             feed_dict[self.keep_prob_ph] = self.tkp
@@ -433,9 +436,13 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                              outcome_width=self.architecture_config["output_shape"][0])
 
     def _pre_loss_calls(self):
-        def _logits_to_accuracy(x, labels=self.base_target_ph):
-            vals = (1. + tf.math.sign(x)) / 2.
-            return tf.reduce_mean(tf.cast(tf.equal(vals, labels),
+        def _logits_to_accuracy(x, labels=self.base_target_ph, 
+                                backward_mask=self.guess_input_mask_ph):
+            mask = tf.math.logical_not(backward_mask)  # only held out examples
+            masked_x = tf.boolean_mask(x, mask)
+            masked_labels = tf.boolean_mask(labels, mask)
+            masked_vals = (1. + tf.math.sign(masked_x)) / 2.
+            return tf.reduce_mean(tf.cast(tf.equal(masked_vals, masked_labels),
                                           tf.float32)) 
         self.base_accuracy = _logits_to_accuracy(self.base_output)
         self.base_fed_emb_accuracy =  _logits_to_accuracy(self.base_fed_emb_output)
