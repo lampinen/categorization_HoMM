@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_39/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_43/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -36,7 +36,7 @@ run_config.update({
     "eval_every": 20,
     "lr_decays_every": 200,
 
-    "init_learning_rate": 1e-4,  # initial learning rate for base tasks
+    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
     "init_meta_learning_rate": 1e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
@@ -61,7 +61,7 @@ architecture_config.update({
     "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 128,
+    "F_num_hidden": 256,
     "optimizer": "Adam",
 
     "meta_batch_size": 30,
@@ -70,8 +70,8 @@ architecture_config.update({
     "memory_buffer_size": 336,
 
     "vision_layers": [[64, 5, 2, False],
-                      [256, 4, 2, True],
-                      #[128, 4, 2, False],
+                      [128, 4, 2, False],
+                      [256, 4, 2, False],
                       [512, 2, 2, True]],
 })
 
