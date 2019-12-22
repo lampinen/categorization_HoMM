@@ -10,14 +10,14 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_49/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_54/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
 
     "meta_class_train_tasks": ["is_basic_rule_shape", "is_basic_rule_color", "is_basic_rule_size", "is_relevant_shape", "is_relevant_color", "is_relevant_size", "is_OR", "is_AND", "is_XOR"],
     "meta_class_eval_tasks": [],
-    "meta_map_train_tasks": ["NOT",
+    "meta_map_train_tasks": [#"NOT",
                        # color switching (a subset)
                        "switch_color_red~blue", "switch_color_blue~red", "switch_color_blue~yellow", "switch_color_yellow~blue", "switch_color_red~green", "switch_color_green~red", "switch_color_yellow~green", "switch_color_green~yellow", "switch_color_green~pink", "switch_color_pink~green", "switch_color_ocean~cyan", "switch_color_green~purple", "switch_color_purple~red", "switch_color_cyan~pink", "switch_color_pink~ocean", "switch_color_ocean~pink", "switch_color_purple~cyan", "switch_color_yellow~cyan", "switch_color_ocean~purple",
                        # shape_switching (all except holdouts)
@@ -32,9 +32,9 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 10,
+    "refresh_mem_buffs_every": 50,
     "eval_every": 20,
-    "lr_decays_every": 200,
+    "lr_decays_every": 400,
 
     "init_learning_rate": 1e-4,  # initial learning rate for base tasks
     "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
@@ -48,7 +48,7 @@ run_config.update({
     "min_meta_learning_rate": 1e-7,
 
     "num_epochs": 1000000,
-    "note": "random angle range reduced"
+    "note": "random angle range reduced; no negation"
 })
 
 
@@ -69,7 +69,7 @@ architecture_config.update({
 
     "memory_buffer_size": 336,
 
-    "task_weight_weight_mult": 10.,
+    "task_weight_weight_mult": 30.,
 
     "vision_layers": [[64, 5, 2, False],
                       [128, 4, 2, False],
@@ -172,8 +172,9 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
         run_config["base_train_tasks"] += train_color_pair_tasks 
 
-        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"])]
+        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "empty_square"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emtpysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
         run_config["base_train_tasks"] += train_shape_pair_tasks 
+
         run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
 
         # and eval tasks that target the meta-mappings, especially held-out ones:
@@ -307,31 +308,31 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         run_config["base_eval_tasks"] += eval_composite_tasks
 
         # and some negations
-        train_negations = []
-        eval_negations = []
-        for x in basic_shape_tasks + basic_color_tasks + basic_size_tasks:
-            if x.accepted_list in [set(["purple"]), set(["circle"]), set([32])]:
-                eval_negations.append(category_tasks.negated(x))
-            else:
-                train_negations.append(category_tasks.negated(x))
-
-        negated_train_color_pair_tasks = [category_tasks.negated(x) for x in train_color_pair_tasks]
-        np.random.shuffle(negated_train_color_pair_tasks)
-        train_negations += negated_train_color_pair_tasks[:-5]
-        eval_negations += negated_train_color_pair_tasks[-5:]
-
-        negated_train_shape_pair_tasks = [category_tasks.negated(x) for x in train_shape_pair_tasks]
-        np.random.shuffle(negated_train_shape_pair_tasks)
-        train_negations += negated_train_shape_pair_tasks[:-2]
-        eval_negations += negated_train_shape_pair_tasks[-2:]
-
-        negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
-        np.random.shuffle(negated_train_composite_tasks)
-        train_negations += negated_train_composite_tasks[:-5]
-        eval_negations += negated_train_composite_tasks[-5:]
-
-        run_config["base_train_tasks"] += train_negations
-        run_config["base_eval_tasks"] += eval_negations
+#        train_negations = []
+#        eval_negations = []
+#        for x in basic_shape_tasks + basic_color_tasks + basic_size_tasks:
+#            if x.accepted_list in [set(["purple"]), set(["circle"]), set([32])]:
+#                eval_negations.append(category_tasks.negated(x))
+#            else:
+#                train_negations.append(category_tasks.negated(x))
+#
+#        negated_train_color_pair_tasks = [category_tasks.negated(x) for x in train_color_pair_tasks]
+#        np.random.shuffle(negated_train_color_pair_tasks)
+#        train_negations += negated_train_color_pair_tasks[:-5]
+#        eval_negations += negated_train_color_pair_tasks[-5:]
+#
+#        negated_train_shape_pair_tasks = [category_tasks.negated(x) for x in train_shape_pair_tasks]
+#        np.random.shuffle(negated_train_shape_pair_tasks)
+#        train_negations += negated_train_shape_pair_tasks[:-2]
+#        eval_negations += negated_train_shape_pair_tasks[-2:]
+#
+#        negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
+#        np.random.shuffle(negated_train_composite_tasks)
+#        train_negations += negated_train_composite_tasks[:-5]
+#        eval_negations += negated_train_composite_tasks[-5:]
+#
+#        run_config["base_train_tasks"] += train_negations
+#        run_config["base_eval_tasks"] += eval_negations
 
         self.base_train_tasks = run_config["base_train_tasks"]
         self.base_eval_tasks = run_config["base_eval_tasks"]
