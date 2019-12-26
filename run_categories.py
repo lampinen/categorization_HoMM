@@ -354,6 +354,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         # and the base data points
         self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
 
+        self.base_task_example_dicts = {str(t): category_tasks.construct_task_instance_dict(t, self.all_concept_instances) for t in self.base_train_tasks + base_eval_tasks}
+
     def fill_buffers(self, num_data_points=1):
         del num_data_points  # don't actually use in this version
         multiplicity = self.run_config["multiplicity"]
@@ -362,12 +364,25 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             buff = self.memory_buffers[str(t)]
             x_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["input_shape"])
             y_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["output_shape"])
-            for i, inst in enumerate(self.all_concept_instances):
-                label = t.apply(inst)
-                index_offset = i * multiplicity
+            examples = self.base_task_example_dicts[str(t)]
+            index = 0
+            for i, inst in enumerate(examples["positive"]):
                 for j in range(multiplicity):
-                    x_data[index_offset + j, :, :, :] = inst.render()
-                y_data[index_offset:index_offset + multiplicity] = label 
+                    x_data[index, :, :, :] = inst.render()
+                    index += 1
+            num_positive = index
+            y_data[0:num_positive] = 1. 
+            for i, contrasting in enumerate(examples["contrasting"]):
+                ex_perm = np.random.permutation(len(contrasting))
+                for j in range(multiplicity):
+                    x_data[index, :, :, :] = contrasting[ex_perm[j]].render()
+                    index += 1
+
+            ex_perm = np.random.permutation(len(other))
+            for i in range(self.architecture_config["memory_buffer_size"] - index):
+                x_data[index, :, :, :] = ex_perm[i % len(ex_perm)].render()
+                index += 1
+
             buff.insert(x_data, y_data)
 
     def build_feed_dict(self, task, lr=None, fed_embedding=None,
@@ -384,25 +399,31 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         if base_or_meta == "base":
             task_name, memory_buffer, task_index = self.base_task_lookup(task)
             inputs, outputs = self.sample_from_memory_buffer(memory_buffer)
-            pos_indices = np.argwhere(outputs) 
-            neg_indices = np.argwhere(np.logical_not(outputs)) 
-            num_pos = len(pos_indices)
-            num_neg = len(neg_indices)
-            np.random.shuffle(pos_indices)
-            np.random.shuffle(neg_indices)
-            small_set_size = min(num_neg, num_pos, self.meta_batch_size//2)
-            pos_indices = pos_indices[:small_set_size, 0]
-            neg_indices = neg_indices[:small_set_size, 0]
-        
+            num_pos = len(self.base_tasks_example_dicts(task_name)["positive"])
+            pos_indices = np.random.permutation(num_pos) 
+            contr_neg_indices = num_pos + pos_indices  # matched contrasting indices
+            other_neg_indices = np.arange(
+                2*num_pos, self.architecture_config["memory_buffer_size"],
+                dtype=np.int32)
+            np.random.shuffle(other_neg_indices)
+
+            small_set_size = min(num_pos, self.meta_batch_size//2)
+            contr_set_size = small_set_size // 2 
+            pos_indices = pos_indices[:small_set_size]
+            neg_indices = np.concatenate(
+                [contr_neg_indices[:contr_set_size]
+                 other_neg_indices[:small_set_size - contr_set_size]], axis=0) 
             all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
+        
             mask = np.zeros(len(all_inds), dtype=np.bool)
 
             feed_dict[self.base_input_ph] = inputs[all_inds]
             feed_dict[self.base_target_ph] = outputs[all_inds]
 
-            # take half the pos and half the neg to be the meta-net samples
+            # take half the pos and half the neg (of each type) to be the meta-net samples
             mask[:small_set_size//2] = True
-            mask[-small_set_size//2:] = True
+            mask[small_set_size:small_set_size + small_set_size//4] = True
+            mask[-small_set_size//4:] = True
             feed_dict[self.guess_input_mask_ph] = mask 
         else:   # meta dicts are the same
             return super(category_HoMM_model, self).build_feed_dict(
