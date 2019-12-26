@@ -98,7 +98,7 @@ class categorization_instance(object):
         return isinstance(other, categorization_instance) and self.shape == other.shape and self.color == other.color and self.size == other.size
 
     def differs_by_one(self, other): 
-        if !isinstance(other, categorization_instance):
+        if not isinstance(other, categorization_instance):
             raise ValueError("Categorization instances can only be compared to other categorization instances")
 
         matches = [self.shape == other.shape, self.color == other.color, self.size == other.size]
@@ -283,23 +283,23 @@ def construct_task_instance_dict(task, instances):
 
     Instances are classified into positive, contrasting negative examples
     paired with the positive example they contrast with, or other negative."""
-    examples = {"positive": [], "contrasting": [], "other": []}
+    examples = {"positive": [], "contrasting": [], "other": [], "all_negative": []}
     for inst in instances:
-        label = t.apply(inst)
+        label = task.apply(inst)
         if label:
             examples["positive"].append(inst)
-    examples["constrating"] = [[] for _ in examples["postiive"]]
+        else:
+            examples["all_negative"].append(inst)
+    examples["contrasting"] = [[] for _ in examples["positive"]]
 
-    for inst in instances:
-        label = t.apply(inst)
-        if label:
-            continue
-        else: 
-            for i, pos_inst in enumerate(examples["positive"]):
-                if inst.differs_by_one(pos_inst):
-                    examples["contrasting"][].append(inst)
-            else:
-                examples["other"].append(inst)
+    for inst in examples["all_negative"]:
+        fits_as_contrasting = False
+        for i, pos_inst in enumerate(examples["positive"]):
+            if inst.differs_by_one(pos_inst):
+                examples["contrasting"][i].append(inst)
+                fits_as_contrasting = True
+        if not fits_as_contrasting:
+            examples["other"].append(inst)
 
     return examples
 

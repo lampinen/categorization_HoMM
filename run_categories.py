@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_54/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_55/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -64,7 +64,7 @@ architecture_config.update({
     "F_num_hidden": 128,
     "optimizer": "Adam",
 
-    "meta_batch_size": 30,
+    "meta_batch_size": 32,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 336,
@@ -90,33 +90,16 @@ class memory_buffer(object):
     removing."""
     def __init__(self, length, input_shape, outcome_width):
         self.length = length
-        self.curr_index = 0
         self.input_buffer = np.zeros([length] + input_shape)
         self.outcome_buffer = np.zeros([length, outcome_width])
 
-    def insert(self, input_mat, outcome_mat):
-        num_events = len(input_mat)
-        if num_events > self.length:
-            num_events = length
-            self.input_buffer = input_mat[-length:, :, :, :]
-            self.outcome_buffer = outcome_mat[-length:, :]
-            self.curr_index = 0.
-            return
-        end_offset = num_events + self.curr_index
-        if end_offset > self.length:
-            back_off = self.length - end_offset
-            num_to_end = num_events + back_off
-            self.input_buffer[:-back_off, :, :, :] = input_mat[num_to_end:, :, :, :]
-            self.outcome_buffer[:-back_off, :] = outcome_mat[num_to_end:, :]
-        else:
-            back_off = end_offset
-            num_to_end = num_events
-        self.input_buffer[self.curr_index:back_off, :, :, :] = input_mat[:num_to_end, :, :, :]
-        self.outcome_buffer[self.curr_index:back_off, :] = outcome_mat[:num_to_end, :]
-        self.curr_index = np.abs(back_off)
+    def insert(self, input_mat, outcome_mat, num_positive_examples):
+        self.input_buffer = input_mat
+        self.outcome_buffer = outcome_mat
+        self.mum_positive_examples = num_positive_examples
 
     def get_memories(self):
-        return self.input_buffer, self.outcome_buffer
+        return self.input_buffer, self.outcome_buffer, self.num_positive_examples
 
 
 # architecture 
@@ -354,11 +337,13 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         # and the base data points
         self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
 
-        self.base_task_example_dicts = {str(t): category_tasks.construct_task_instance_dict(t, self.all_concept_instances) for t in self.base_train_tasks + base_eval_tasks}
+        self.base_task_example_dicts = {str(t): category_tasks.construct_task_instance_dict(t, self.all_concept_instances) for t in self.base_train_tasks + self.base_eval_tasks}
 
     def fill_buffers(self, num_data_points=1):
         del num_data_points  # don't actually use in this version
         multiplicity = self.run_config["multiplicity"]
+        memory_buffer_size = self.architecture_config["memory_buffer_size"]
+
         this_tasks = self.base_train_tasks + self.base_eval_tasks 
         for t in this_tasks:
             buff = self.memory_buffers[str(t)]
@@ -370,20 +355,45 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 for j in range(multiplicity):
                     x_data[index, :, :, :] = inst.render()
                     index += 1
+                    if index >= memory_buffer_size // 2:
+                        break
+                if index >= memory_buffer_size // 2:
+                    break
             num_positive = index
             y_data[0:num_positive] = 1. 
             for i, contrasting in enumerate(examples["contrasting"]):
-                ex_perm = np.random.permutation(len(contrasting))
+                these_contrasting = contrasting
+                if len(these_contrasting) == 0:  # some examples don't have negative contrasts, e.g. in OR with both attributes 
+                    these_contrasting = examples["all_negative"]
+                    
+                ex_perm = np.random.permutation(len(these_contrasting))
                 for j in range(multiplicity):
-                    x_data[index, :, :, :] = contrasting[ex_perm[j]].render()
+                    x_data[index, :, :, :] = these_contrasting[ex_perm[j % len(ex_perm)]].render()
+                    index += 1
+                    if index >= memory_buffer_size:
+                        break
+                if index >= memory_buffer_size:
+                    break
+
+            if len(examples["other"]) > 0:
+                ex_perm = np.random.permutation(len(examples["other"]))
+                for i in range(self.architecture_config["memory_buffer_size"] - index):
+                    x_data[index, :, :, :] = examples["other"][ex_perm[i % len(ex_perm)]].render()
+                    index += 1
+            else:  # for basic rules e.g. all examples "contrast" another
+                pos_perm = np.random.permutation(len(examples["all_negative"]))
+                pos_perm_len = len(pos_perm)
+                for i in range(self.architecture_config["memory_buffer_size"] - index):
+                    pos_ind = pos_perm[i % pos_perm_len]
+                    x_data[index, :, :, :] = examples["all_negative"][pos_ind].render()
                     index += 1
 
-            ex_perm = np.random.permutation(len(other))
-            for i in range(self.architecture_config["memory_buffer_size"] - index):
-                x_data[index, :, :, :] = ex_perm[i % len(ex_perm)].render()
-                index += 1
+            buff.insert(x_data, y_data, num_positive)
 
-            buff.insert(x_data, y_data)
+    def sample_from_memory_buffer(self, memory_buffer):
+        """Return experiences from the memory buffer."""
+        input_buff, output_buff, num_pos = memory_buffer.get_memories()
+        return input_buff, output_buff, num_pos
 
     def build_feed_dict(self, task, lr=None, fed_embedding=None,
                         call_type="base_standard_train"):
@@ -398,10 +408,9 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         if base_or_meta == "base":
             task_name, memory_buffer, task_index = self.base_task_lookup(task)
-            inputs, outputs = self.sample_from_memory_buffer(memory_buffer)
-            num_pos = len(self.base_tasks_example_dicts(task_name)["positive"])
+            inputs, outputs, num_pos = self.sample_from_memory_buffer(memory_buffer)
             pos_indices = np.random.permutation(num_pos) 
-            contr_neg_indices = num_pos + pos_indices  # matched contrasting indices
+            contr_neg_indices = pos_indices + num_pos  # matched contrasting indices
             other_neg_indices = np.arange(
                 2*num_pos, self.architecture_config["memory_buffer_size"],
                 dtype=np.int32)
@@ -411,7 +420,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             contr_set_size = small_set_size // 2 
             pos_indices = pos_indices[:small_set_size]
             neg_indices = np.concatenate(
-                [contr_neg_indices[:contr_set_size]
+                [contr_neg_indices[:contr_set_size],
                  other_neg_indices[:small_set_size - contr_set_size]], axis=0) 
             all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
         
