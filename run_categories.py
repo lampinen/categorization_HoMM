@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_61/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_64/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -36,7 +36,7 @@ run_config.update({
     "eval_every": 20,
     "lr_decays_every": 400,
 
-    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
+    "init_learning_rate": 2e-4,  # initial learning rate for base tasks
     "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
