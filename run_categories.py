@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_60/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_61/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -48,6 +48,7 @@ run_config.update({
     "min_meta_learning_rate": 1e-7,
 
     "num_epochs": 1000000,
+    "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation"
 })
 
@@ -61,7 +62,7 @@ architecture_config.update({
     "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 128,
+    "F_num_hidden": 64,
     "optimizer": "Adam",
 
     "meta_batch_size": 32,
@@ -69,7 +70,7 @@ architecture_config.update({
 
     "memory_buffer_size": 336,
 
-    "task_weight_weight_mult": 20.,
+    "task_weight_weight_mult": 30.,
 
     "vision_layers": [[64, 5, 2, False],
                       [128, 4, 2, False],
@@ -137,6 +138,7 @@ def xe_loss(output_logits, targets, backward_mask):  # xe only on held out examp
 
 class category_HoMM_model(HoMM_model.HoMM_model):
     def __init__(self, run_config=None):
+        self.include_noncontrasting_negative = run_config["include_noncontrasting_negative"]
         super(category_HoMM_model, self).__init__(
             architecture_config=architecture_config, run_config=run_config,
             input_processor=lambda x: vision(x, architecture_config["z_dim"],
@@ -412,17 +414,21 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             inputs, outputs, num_pos = self.sample_from_memory_buffer(memory_buffer)
             pos_indices = np.random.permutation(num_pos) 
             contr_neg_indices = pos_indices + num_pos  # matched contrasting indices
-            other_neg_indices = np.arange(
-                2*num_pos, self.architecture_config["memory_buffer_size"],
-                dtype=np.int32)
-            np.random.shuffle(other_neg_indices)
 
             small_set_size = min(num_pos, self.meta_batch_size//2)
             contr_set_size = small_set_size // 2 
             pos_indices = pos_indices[:small_set_size]
-            neg_indices = np.concatenate(
-                [contr_neg_indices[:contr_set_size],
-                 other_neg_indices[:small_set_size - contr_set_size]], axis=0) 
+
+            if self.include_noncontrasting_negative:
+                other_neg_indices = np.arange(
+                    2*num_pos, self.architecture_config["memory_buffer_size"],
+                    dtype=np.int32)
+                np.random.shuffle(other_neg_indices)
+                neg_indices = np.concatenate(
+                    [contr_neg_indices[:contr_set_size],
+                     other_neg_indices[:small_set_size - contr_set_size]], axis=0) 
+            else:
+                neg_indices = contr_neg_indices[:small_set_size]
             all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
         
             mask = np.zeros(len(all_inds), dtype=np.bool)
@@ -430,10 +436,15 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             feed_dict[self.base_input_ph] = inputs[all_inds]
             feed_dict[self.base_target_ph] = outputs[all_inds]
 
-            # take half the pos and half the neg (of each type) to be the meta-net samples
+            # take half the pos
             mask[:small_set_size//2] = True
-            mask[small_set_size:small_set_size + small_set_size//4] = True
-            mask[-small_set_size//4:] = True
+            if self.include_noncontrasting_negative:
+                #  and half the neg (of each type) to be the meta-net samples
+                mask[small_set_size:small_set_size + small_set_size//4] = True
+                mask[-small_set_size//4:] = True
+            else:
+                #  and contrasting negative 
+                mask[small_set_size:small_set_size + small_set_size//2] = True
             feed_dict[self.guess_input_mask_ph] = mask 
         else:   # meta dicts are the same
             return super(category_HoMM_model, self).build_feed_dict(
