@@ -10,7 +10,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_55/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_60/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -36,7 +36,7 @@ run_config.update({
     "eval_every": 20,
     "lr_decays_every": 400,
 
-    "init_learning_rate": 1e-4,  # initial learning rate for base tasks
+    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
     "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
@@ -69,7 +69,7 @@ architecture_config.update({
 
     "memory_buffer_size": 336,
 
-    "task_weight_weight_mult": 30.,
+    "task_weight_weight_mult": 20.,
 
     "vision_layers": [[64, 5, 2, False],
                       [128, 4, 2, False],
@@ -90,16 +90,17 @@ class memory_buffer(object):
     removing."""
     def __init__(self, length, input_shape, outcome_width):
         self.length = length
+        self.num_positive = None
         self.input_buffer = np.zeros([length] + input_shape)
         self.outcome_buffer = np.zeros([length, outcome_width])
 
-    def insert(self, input_mat, outcome_mat, num_positive_examples):
+    def insert(self, input_mat, outcome_mat, num_positive):
         self.input_buffer = input_mat
         self.outcome_buffer = outcome_mat
-        self.mum_positive_examples = num_positive_examples
+        self.num_positive = num_positive
 
     def get_memories(self):
-        return self.input_buffer, self.outcome_buffer, self.num_positive_examples
+        return self.input_buffer, self.outcome_buffer, self.num_positive
 
 
 # architecture 
