@@ -12,8 +12,44 @@ library(tidyverse)
 
 ```{r}
 parent_dir = ".."
-subdirs = c("results_2", #"results_3", "results_4",
-            "results_5", "results_6", "results_7", "results_8", "results_9")
+subdirs = c(#"results_0", #"results_1", 
+            #"results_2",
+            #"results_3", "results_4",
+            #"results_5", "results_6",
+            #"results_7", 
+            #"results_8",# "results_9",
+            #"results_10", 
+            #"results_11", #"results_12",
+            #"results_13", "results_14",
+            #"results_15",
+            #"results_16", "results_17", "results_18", "results_19",
+            #"results_20", 
+            #"results_21", "results_22",
+            #"results_23", "results_24", "results_25", 
+            #"results_26", "results_27",
+            #"results_28", "results_29",
+            #"results_30", 
+            #"results_31", #"results_32",
+            #"results_33", "results_34", "results_35", 
+            #"results_36", "results_37", "results_38",
+            #"results_40", "results_41", "results_42", "results_43",
+            #"results_44",
+            "results_45", 
+            #"results_46", "results_47", "results_48", 
+            #"results_49",
+            ## without negation
+            #"results_50", "results_51", "results_52",
+            #"results_53", "results_54",
+            ## contrasting examples
+            #"results_55", "results_56", "results_57", "results_58", "results_59", "results_60",
+            #"results_61", "results_62", "results_63", "results_64",
+            # weight norm
+            #"results_65", "results_66",
+            "results_67", "results_68",
+            "results_69", "results_70",
+            "results_71",
+            "results_72", "results_73", "results_74", "results_75", "results_76", "results_77"
+            )
 num_runs = 1
 ```
 
@@ -31,7 +67,8 @@ read_config = function(config_file) {
 
 ```{r}
 load_d = function(results_dir, result_subdirs, num_runs, file_type) {
-  d = data.frame()
+  d = replicate(num_runs * length(result_subdirs), data.frame())
+  index = 1
   for (run_i in 0:(num_runs-1)) {
     for (result_subdir in result_subdirs) {
       filename = sprintf("%s/%s/run%i_%s.csv", results_dir, result_subdir, run_i, file_type)
@@ -44,17 +81,18 @@ load_d = function(results_dir, result_subdirs, num_runs, file_type) {
         this_d = read_config(filename)
       } else {
         this_d = read.csv(filename, check.names=F, header=T) 
-        names(this_d) <- make.unique(names(this_d))
+        names(this_d) <- make.unique(names(this_d)) 
 
       }
       this_d = this_d %>%
         mutate(run = run_i,
                run_type = result_subdir)
-      d = d %>%
-        bind_rows(this_d)
+      d[[index]] = this_d
+      index = index + 1
     }
     
   }
+  d = bind_rows(d)
   return(d)
 }
 ```
@@ -73,11 +111,16 @@ loss_d = loss_d %>%
   gather(task_and_train_or_eval, loss, -epoch, -run, -run_type) %>%
   separate(task_and_train_or_eval, c("task", "train_or_eval"), sep=":") %>%
   mutate(meta = grepl("is_|switch_|^NOT$", task),
+         accuracy = grepl("accuracy", task),
          meta_task_type = case_when(!meta ~ "NA",
                                     task == "NOT" ~ "NOT",
                                     grepl("switch_color", task) ~ "switch_color",
                                     grepl("switch_shape", task) ~ "switch_shape",
-                                    grepl("switch_size", task) ~ "switch_size"))
+                                    grepl("switch_size", task) ~ "switch_size"),
+         composite = ifelse(grepl("AND|OR|XOR", task), "composite", "basic"),
+         color_relevant = grepl("color", task),
+         shape_relevant = grepl("shape", task),
+         size_relevant = grepl("size", task))
   
 ```
 
@@ -91,7 +134,8 @@ meta_true_d = meta_true_d %>%
                                     grepl("switch_shape", meta_task) ~ "switch_shape",
                                     grepl("switch_size", meta_task) ~ "switch_size"),
          base_task_type = case_when(grepl("AND|OR|XOR", source) ~ "composite",
-                                    T ~ "basic"))
+                                    T ~ "basic"),
+         base_composite_type = str_extract(source, "AND|OR|XOR"))
   
 ```
 
@@ -102,11 +146,55 @@ theme_set(theme_bw())
 ```
 
 ```{r}
-ggplot(loss_d,
+ggplot(loss_d %>% 
+         filter(!meta),
        aes(x=epoch, y=loss, color=train_or_eval)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_grid(run_type ~ meta, scales="free") 
+  facet_grid(run_type ~ accuracy, scales="free") 
+```
+
+```{r}
+ggplot(loss_d %>% 
+         filter(!meta,
+                accuracy,
+                run_type == "results_67"),
+       aes(x=epoch, y=loss, color=train_or_eval)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(shape_relevant + color_relevant + size_relevant ~ composite + accuracy, scales="free") 
+```
+```{r}
+ggplot(loss_d %>% 
+         filter(!meta,
+                accuracy,
+                run_type == "results_71"),
+       aes(x=epoch, y=loss, color=train_or_eval)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(shape_relevant + color_relevant + size_relevant ~ composite + accuracy, scales="free") 
+```
+
+```{r}
+ggplot(loss_d %>% 
+         filter(!meta,
+                accuracy,
+                run_type == "results_73"),
+       aes(x=epoch, y=loss, color=train_or_eval)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(shape_relevant + color_relevant + size_relevant ~ composite + accuracy, scales="free") 
+```
+
+```{r}
+ggplot(loss_d %>% 
+         filter(!meta,
+                accuracy,
+                run_type == "results_75"),
+       aes(x=epoch, y=loss, color=train_or_eval)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(shape_relevant + color_relevant + size_relevant ~ composite + accuracy, scales="free") 
 ```
 
 ```{r}
@@ -119,18 +207,58 @@ ggplot(loss_d %>%
 ```
 
 ```{r}
-ggplot(meta_true_d,
+ggplot(meta_true_d %>% 
+         filter(run_type == "results_67"),
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_grid(meta_task_type ~ base_task_type + run_type, scales="free")
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
 ```
 
 ```{r}
-ggplot(meta_true_d,
+ggplot(meta_true_d %>%
+         filter(run_type == "results_70"),
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
-            fun.y="median") +
-  facet_grid(meta_task_type ~ base_task_type + run_type, scales="free")
+            fun.y="mean") +
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
+```
+
+
+```{r}
+ggplot(meta_true_d %>%
+         filter(run_type == "results_71"),
+       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
+```
+
+```{r}
+ggplot(meta_true_d %>%
+         filter(run_type == "results_77"),
+       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
+```
+
+
+```{r}
+ggplot(meta_true_d %>%
+         filter(run_type == "results_75"),
+       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
+```
+
+```{r}
+ggplot(meta_true_d %>%
+         filter(run_type == "results_73"),
+       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
+  geom_line(stat="summary",
+            fun.y="mean") +
+  facet_grid(meta_task_type ~ base_task_type + base_composite_type + run_type, scales="free")
 ```
 
