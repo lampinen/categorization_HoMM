@@ -97,6 +97,13 @@ class categorization_instance(object):
     def __eq__(self, other):
         return isinstance(other, categorization_instance) and self.shape == other.shape and self.color == other.color and self.size == other.size
 
+    def differs_by_one(self, other): 
+        if not isinstance(other, categorization_instance):
+            raise ValueError("Categorization instances can only be compared to other categorization instances")
+
+        matches = [self.shape == other.shape, self.color == other.color, self.size == other.size]
+        return sum(matches) == 2
+
 
 class basic_rule(object):
     def __init__(self, attribute_type, accepted_list):
@@ -270,6 +277,31 @@ def switch_basic_attribute(rule, target_attribute_type, pairs):
                                                      pairs)
         return composite_rule(rule.rule_type, result_a, result_b)
 
+
+def construct_task_instance_dict(task, instances):
+    """Construct a dict classifying the instances for this task.
+
+    Instances are classified into positive, contrasting negative examples
+    paired with the positive example they contrast with, or other negative."""
+    examples = {"positive": [], "contrasting": [], "other": [], "all_negative": []}
+    for inst in instances:
+        label = task.apply(inst)
+        if label:
+            examples["positive"].append(inst)
+        else:
+            examples["all_negative"].append(inst)
+    examples["contrasting"] = [[] for _ in examples["positive"]]
+
+    for inst in examples["all_negative"]:
+        fits_as_contrasting = False
+        for i, pos_inst in enumerate(examples["positive"]):
+            if inst.differs_by_one(pos_inst):
+                examples["contrasting"][i].append(inst)
+                fits_as_contrasting = True
+        if not fits_as_contrasting:
+            examples["other"].append(inst)
+
+    return examples
 
 def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks, meta_class_eval_tasks,
                       meta_map_train_tasks, meta_map_eval_tasks):

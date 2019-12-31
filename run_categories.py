@@ -1,4 +1,5 @@
 import numpy as np
+import re
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
@@ -10,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_54/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_80/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -32,23 +33,24 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 50,
+    "refresh_mem_buffs_every": 20,
     "eval_every": 20,
     "lr_decays_every": 400,
 
-    "init_learning_rate": 1e-4,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
+    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
+    "init_meta_learning_rate": 2e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-    "min_learning_rate": 1e-7,  # can't decay past these minimum values 
+    "min_learning_rate": 1e-8,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-    "min_meta_learning_rate": 1e-7,
+    "min_meta_learning_rate": 1e-8,
 
     "num_epochs": 1000000,
-    "note": "random angle range reduced; no negation"
+    "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
+    "note": "random angle range reduced; no negation; more composite"
 })
 
 
@@ -61,10 +63,15 @@ architecture_config.update({
     "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 128,
+    "F_num_hidden": 64,
     "optimizer": "Adam",
 
-    "meta_batch_size": 30,
+    "F_weight_normalization": True,
+    "F_wn_strategy": "standard",
+
+#    "train_drop_prob": 0.5,
+
+    "meta_batch_size": 128,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 336,
@@ -84,39 +91,34 @@ if False:  # enable for persistent
         "emb_match_loss_weight": 0.2,
     })
 
+if True:  # enable for language baseline
+    run_config.update({
+        "train_language_base": True,
+        "train_base": False,
+        "train_meta": False,
+
+        "vocab": ["PAD"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
+
+        "output_dir": run_config["output_dir"] + "language/",  # subfolder
+    })
+
 
 class memory_buffer(object):
     """Essentially a wrapper around numpy arrays that handles inserting and
     removing."""
     def __init__(self, length, input_shape, outcome_width):
         self.length = length
-        self.curr_index = 0
+        self.num_positive = None
         self.input_buffer = np.zeros([length] + input_shape)
         self.outcome_buffer = np.zeros([length, outcome_width])
 
-    def insert(self, input_mat, outcome_mat):
-        num_events = len(input_mat)
-        if num_events > self.length:
-            num_events = length
-            self.input_buffer = input_mat[-length:, :, :, :]
-            self.outcome_buffer = outcome_mat[-length:, :]
-            self.curr_index = 0.
-            return
-        end_offset = num_events + self.curr_index
-        if end_offset > self.length:
-            back_off = self.length - end_offset
-            num_to_end = num_events + back_off
-            self.input_buffer[:-back_off, :, :, :] = input_mat[num_to_end:, :, :, :]
-            self.outcome_buffer[:-back_off, :] = outcome_mat[num_to_end:, :]
-        else:
-            back_off = end_offset
-            num_to_end = num_events
-        self.input_buffer[self.curr_index:back_off, :, :, :] = input_mat[:num_to_end, :, :, :]
-        self.outcome_buffer[self.curr_index:back_off, :] = outcome_mat[:num_to_end, :]
-        self.curr_index = np.abs(back_off)
+    def insert(self, input_mat, outcome_mat, num_positive):
+        self.input_buffer = input_mat
+        self.outcome_buffer = outcome_mat
+        self.num_positive = num_positive
 
     def get_memories(self):
-        return self.input_buffer, self.outcome_buffer
+        return self.input_buffer, self.outcome_buffer, self.num_positive
 
 
 # architecture 
@@ -153,6 +155,7 @@ def xe_loss(output_logits, targets, backward_mask):  # xe only on held out examp
 
 class category_HoMM_model(HoMM_model.HoMM_model):
     def __init__(self, run_config=None):
+        self.include_noncontrasting_negative = run_config["include_noncontrasting_negative"]
         super(category_HoMM_model, self).__init__(
             architecture_config=architecture_config, run_config=run_config,
             input_processor=lambda x: vision(x, architecture_config["z_dim"],
@@ -172,7 +175,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
         run_config["base_train_tasks"] += train_color_pair_tasks 
 
-        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "empty_square"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emtpysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
+        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "emptysquare"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emptysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
         run_config["base_train_tasks"] += train_shape_pair_tasks 
 
         run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
@@ -301,8 +304,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:150]
-        eval_composite_tasks += composite_tasks[150:200]
+        train_composite_tasks += composite_tasks[:200]
+        eval_composite_tasks += composite_tasks[200:250]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
@@ -354,21 +357,63 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         # and the base data points
         self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
 
+        self.base_task_example_dicts = {str(t): category_tasks.construct_task_instance_dict(t, self.all_concept_instances) for t in self.base_train_tasks + self.base_eval_tasks}
+
     def fill_buffers(self, num_data_points=1):
         del num_data_points  # don't actually use in this version
         multiplicity = self.run_config["multiplicity"]
+        memory_buffer_size = self.architecture_config["memory_buffer_size"]
+
         this_tasks = self.base_train_tasks + self.base_eval_tasks 
         for t in this_tasks:
             buff = self.memory_buffers[str(t)]
             x_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["input_shape"])
             y_data = np.zeros([self.architecture_config["memory_buffer_size"]] + self.architecture_config["output_shape"])
-            for i, inst in enumerate(self.all_concept_instances):
-                label = t.apply(inst)
-                index_offset = i * multiplicity
+            examples = self.base_task_example_dicts[str(t)]
+            index = 0
+            for i, inst in enumerate(examples["positive"]):
                 for j in range(multiplicity):
-                    x_data[index_offset + j, :, :, :] = inst.render()
-                y_data[index_offset:index_offset + multiplicity] = label 
-            buff.insert(x_data, y_data)
+                    x_data[index, :, :, :] = inst.render()
+                    index += 1
+                    if index >= memory_buffer_size // 2:
+                        break
+                if index >= memory_buffer_size // 2:
+                    break
+            num_positive = index
+            y_data[0:num_positive] = 1. 
+            for i, contrasting in enumerate(examples["contrasting"]):
+                these_contrasting = contrasting
+                if len(these_contrasting) == 0:  # some examples don't have negative contrasts, e.g. in OR with both attributes 
+                    these_contrasting = examples["all_negative"]
+                    
+                ex_perm = np.random.permutation(len(these_contrasting))
+                for j in range(multiplicity):
+                    x_data[index, :, :, :] = these_contrasting[ex_perm[j % len(ex_perm)]].render()
+                    index += 1
+                    if index >= memory_buffer_size:
+                        break
+                if index >= memory_buffer_size:
+                    break
+
+            if len(examples["other"]) > 0:
+                ex_perm = np.random.permutation(len(examples["other"]))
+                for i in range(self.architecture_config["memory_buffer_size"] - index):
+                    x_data[index, :, :, :] = examples["other"][ex_perm[i % len(ex_perm)]].render()
+                    index += 1
+            else:  # for basic rules e.g. all examples "contrast" another
+                pos_perm = np.random.permutation(len(examples["all_negative"]))
+                pos_perm_len = len(pos_perm)
+                for i in range(self.architecture_config["memory_buffer_size"] - index):
+                    pos_ind = pos_perm[i % pos_perm_len]
+                    x_data[index, :, :, :] = examples["all_negative"][pos_ind].render()
+                    index += 1
+
+            buff.insert(x_data, y_data, num_positive)
+
+    def sample_from_memory_buffer(self, memory_buffer):
+        """Return experiences from the memory buffer."""
+        input_buff, output_buff, num_pos = memory_buffer.get_memories()
+        return input_buff, output_buff, num_pos
 
     def build_feed_dict(self, task, lr=None, fed_embedding=None,
                         call_type="base_standard_train"):
@@ -383,26 +428,40 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         if base_or_meta == "base":
             task_name, memory_buffer, task_index = self.base_task_lookup(task)
-            inputs, outputs = self.sample_from_memory_buffer(memory_buffer)
-            pos_indices = np.argwhere(outputs) 
-            neg_indices = np.argwhere(np.logical_not(outputs)) 
-            num_pos = len(pos_indices)
-            num_neg = len(neg_indices)
-            np.random.shuffle(pos_indices)
-            np.random.shuffle(neg_indices)
-            small_set_size = min(num_neg, num_pos, self.meta_batch_size//2)
-            pos_indices = pos_indices[:small_set_size, 0]
-            neg_indices = neg_indices[:small_set_size, 0]
-        
+            inputs, outputs, num_pos = self.sample_from_memory_buffer(memory_buffer)
+            pos_indices = np.random.permutation(num_pos) 
+            contr_neg_indices = pos_indices + num_pos  # matched contrasting indices
+
+            small_set_size = min(num_pos, self.meta_batch_size//2)
+            contr_set_size = small_set_size // 2 
+            pos_indices = pos_indices[:small_set_size]
+
+            if self.include_noncontrasting_negative:
+                other_neg_indices = np.arange(
+                    2*num_pos, self.architecture_config["memory_buffer_size"],
+                    dtype=np.int32)
+                np.random.shuffle(other_neg_indices)
+                neg_indices = np.concatenate(
+                    [contr_neg_indices[:contr_set_size],
+                     other_neg_indices[:small_set_size - contr_set_size]], axis=0) 
+            else:
+                neg_indices = contr_neg_indices[:small_set_size]
             all_inds = np.concatenate([pos_indices, neg_indices], axis=0) 
+        
             mask = np.zeros(len(all_inds), dtype=np.bool)
 
             feed_dict[self.base_input_ph] = inputs[all_inds]
             feed_dict[self.base_target_ph] = outputs[all_inds]
 
-            # take half the pos and half the neg to be the meta-net samples
+            # take half the pos
             mask[:small_set_size//2] = True
-            mask[-small_set_size//2:] = True
+            if self.include_noncontrasting_negative:
+                #  and half the neg (of each type) to be the meta-net samples
+                mask[small_set_size:small_set_size + small_set_size//4] = True
+                mask[-small_set_size//4:] = True
+            else:
+                #  and contrasting negative 
+                mask[small_set_size:small_set_size + small_set_size//2] = True
             feed_dict[self.guess_input_mask_ph] = mask 
         else:   # meta dicts are the same
             return super(category_HoMM_model, self).build_feed_dict(
@@ -413,7 +472,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 fed_embedding = np.expand_dims(fed_embedding, axis=0)
             feed_dict[self.feed_embedding_ph] = fed_embedding
         elif call_type == "lang":
-            feed_dict[self.language_input_ph] = self.intify_task(task_name)
+            feed_dict[self.language_input_ph] = self.task_name_to_lang_input[task_name]
         if call_type == "cached" or self.architecture_config["persistent_task_reps"]:
             feed_dict[self.task_index_ph] = [task_index]
 
@@ -450,10 +509,20 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         self.base_accuracy = _logits_to_accuracy(self.base_output)
         self.base_fed_emb_accuracy =  _logits_to_accuracy(self.base_fed_emb_output)
         self.base_cached_emb_accuracy = _logits_to_accuracy(self.base_cached_emb_output)
+        if self.run_config["train_language_base"]:
+            self.base_lang_accuracy = _logits_to_accuracy(self.base_lang_output)
 
     def base_eval(self, task, train_or_eval):
         feed_dict = self.build_feed_dict(task, call_type="base_cached_eval")
         fetches = [self.total_base_cached_emb_loss, self.base_cached_emb_accuracy]
+        res = self.sess.run(fetches, feed_dict=feed_dict)
+        name = str(task)
+        return [name + "_loss:" + train_or_eval,
+                name + "_accuracy:" + train_or_eval], res
+
+    def base_language_eval(self, task, train_or_eval):
+        feed_dict = self.build_feed_dict(task, call_type="base_lang_eval")
+        fetches = [self.total_base_lang_loss, self.base_lang_accuracy]
         res = self.sess.run(fetches, feed_dict=feed_dict)
         name = str(task)
         return [name + "_loss:" + train_or_eval,
@@ -464,6 +533,28 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         fetches = [self.base_fed_emb_accuracy]
         res = self.sess.run(fetches, feed_dict=feed_dict)
         return res
+
+    def intify_task(self, task_name):  # note: only base tasks implemented at present
+        vocab_d = self.vocab_dict
+        max_sentence_len = self.architecture_config["max_sentence_len"]
+
+        def intify_basic(basic_task_name):
+            attribute_type, matches = basic_task_name.split("=")
+            matches = matches.split("&") 
+            full = [attribute_type, "="] + [x for m in matches for x in (m, "&")][:-1]
+            return [vocab_d[x] for x in full]
+        
+        paren_split = re.split("[()]", task_name)
+        if paren_split[0] in ["AND", "OR", "XOR"]:  # composite
+            basic_1 = intify_basic(paren_split[2])
+            basic_2 = intify_basic(paren_split[4])
+            full = [vocab_d[paren_split[0]]] + [vocab_d["("]] * 2 + basic_1
+            full += [vocab_d[")"], vocab_d["&"], vocab_d["("]] + basic_2
+            full += [vocab_d[")"]] * 2
+        else:
+            full =  intify_basic(task_name)
+
+        return [vocab_d["PAD"]] * (max_sentence_len - len(full)) + full
 
 
 ## running stuff
