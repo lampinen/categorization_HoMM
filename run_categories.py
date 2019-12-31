@@ -1,4 +1,5 @@
 import numpy as np
+import re
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
@@ -10,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_70/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_80/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -32,24 +33,24 @@ run_config.update({
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
-    "refresh_mem_buffs_every": 50,
+    "refresh_mem_buffs_every": 20,
     "eval_every": 20,
-    "lr_decays_every": 500,
+    "lr_decays_every": 400,
 
-    "init_learning_rate": 1e-4,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
+    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
+    "init_meta_learning_rate": 2e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
 #    "meta_lr_decay": 0.85,
 
-    "min_learning_rate": 1e-7,  # can't decay past these minimum values 
+    "min_learning_rate": 1e-8,  # can't decay past these minimum values 
 #    "min_language_learning_rate": 3e-8,
-    "min_meta_learning_rate": 1e-7,
+    "min_meta_learning_rate": 1e-8,
 
     "num_epochs": 1000000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
-    "note": "random angle range reduced; no negation"
+    "note": "random angle range reduced; no negation; more composite"
 })
 
 
@@ -62,13 +63,15 @@ architecture_config.update({
     "M_num_hidden": 1024,
     "H_num_hidden": 512,
     "z_dim": 512,
-    "F_num_hidden": 128,
+    "F_num_hidden": 64,
     "optimizer": "Adam",
 
     "F_weight_normalization": True,
     "F_wn_strategy": "standard",
 
-    "meta_batch_size": 32,
+#    "train_drop_prob": 0.5,
+
+    "meta_batch_size": 128,
 #    "meta_holdout_size": 30,
 
     "memory_buffer_size": 336,
@@ -86,6 +89,17 @@ if False:  # enable for persistent
         "persistent_task_reps": True,
         "combined_emb_guess_weight": "varied",
         "emb_match_loss_weight": 0.2,
+    })
+
+if True:  # enable for language baseline
+    run_config.update({
+        "train_language_base": True,
+        "train_base": False,
+        "train_meta": False,
+
+        "vocab": ["PAD"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
+
+        "output_dir": run_config["output_dir"] + "language/",  # subfolder
     })
 
 
@@ -161,7 +175,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
         run_config["base_train_tasks"] += train_color_pair_tasks 
 
-        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "empty_square"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emtpysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
+        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "emptysquare"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emptysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
         run_config["base_train_tasks"] += train_shape_pair_tasks 
 
         run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
@@ -290,8 +304,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:150]
-        eval_composite_tasks += composite_tasks[150:200]
+        train_composite_tasks += composite_tasks[:200]
+        eval_composite_tasks += composite_tasks[200:250]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
@@ -458,7 +472,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 fed_embedding = np.expand_dims(fed_embedding, axis=0)
             feed_dict[self.feed_embedding_ph] = fed_embedding
         elif call_type == "lang":
-            feed_dict[self.language_input_ph] = self.intify_task(task_name)
+            feed_dict[self.language_input_ph] = self.task_name_to_lang_input[task_name]
         if call_type == "cached" or self.architecture_config["persistent_task_reps"]:
             feed_dict[self.task_index_ph] = [task_index]
 
@@ -495,10 +509,20 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         self.base_accuracy = _logits_to_accuracy(self.base_output)
         self.base_fed_emb_accuracy =  _logits_to_accuracy(self.base_fed_emb_output)
         self.base_cached_emb_accuracy = _logits_to_accuracy(self.base_cached_emb_output)
+        if self.run_config["train_language_base"]:
+            self.base_lang_accuracy = _logits_to_accuracy(self.base_lang_output)
 
     def base_eval(self, task, train_or_eval):
         feed_dict = self.build_feed_dict(task, call_type="base_cached_eval")
         fetches = [self.total_base_cached_emb_loss, self.base_cached_emb_accuracy]
+        res = self.sess.run(fetches, feed_dict=feed_dict)
+        name = str(task)
+        return [name + "_loss:" + train_or_eval,
+                name + "_accuracy:" + train_or_eval], res
+
+    def base_language_eval(self, task, train_or_eval):
+        feed_dict = self.build_feed_dict(task, call_type="base_lang_eval")
+        fetches = [self.total_base_lang_loss, self.base_lang_accuracy]
         res = self.sess.run(fetches, feed_dict=feed_dict)
         name = str(task)
         return [name + "_loss:" + train_or_eval,
@@ -509,6 +533,28 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         fetches = [self.base_fed_emb_accuracy]
         res = self.sess.run(fetches, feed_dict=feed_dict)
         return res
+
+    def intify_task(self, task_name):  # note: only base tasks implemented at present
+        vocab_d = self.vocab_dict
+        max_sentence_len = self.architecture_config["max_sentence_len"]
+
+        def intify_basic(basic_task_name):
+            attribute_type, matches = basic_task_name.split("=")
+            matches = matches.split("&") 
+            full = [attribute_type, "="] + [x for m in matches for x in (m, "&")][:-1]
+            return [vocab_d[x] for x in full]
+        
+        paren_split = re.split("[()]", task_name)
+        if paren_split[0] in ["AND", "OR", "XOR"]:  # composite
+            basic_1 = intify_basic(paren_split[2])
+            basic_2 = intify_basic(paren_split[4])
+            full = [vocab_d[paren_split[0]]] + [vocab_d["("]] * 2 + basic_1
+            full += [vocab_d[")"], vocab_d["&"], vocab_d["("]] + basic_2
+            full += [vocab_d[")"]] * 2
+        else:
+            full =  intify_basic(task_name)
+
+        return [vocab_d["PAD"]] * (max_sentence_len - len(full)) + full
 
 
 ## running stuff
