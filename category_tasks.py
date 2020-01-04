@@ -7,9 +7,10 @@ import scipy.ndimage
 
 import matplotlib.pyplot as plt
 
-BASE_SHAPES = ["triangle", "square", 
-               "plus", "circle", "tee",
-               "inverseplus", "emptysquare"]
+BASE_SHAPES = [#"triangle", "square", 
+               #"plus", "circle", "tee",
+               "inverseplus", "emptysquare",
+               "emptytriangle"]
 BASE_COLORS = {
     "red": (1., 0., 0.),
     "green": (0., 1., 0.),
@@ -31,7 +32,7 @@ RANDOM_ANGLE_RANGE = 20
 BASE_COLORS = {n: np.array(c, dtype=np.float32) for n, c in BASE_COLORS.items()} 
 
 def _render_plain_shape(name, size):
-    """Shape without color dimension, at random rotation and position."""
+    """Shape without color dimension."""
     size = int(size)
     shape = np.zeros([size, size], np.float32)
     if name == "square":
@@ -52,21 +53,28 @@ def _render_plain_shape(name, size):
     elif name == "tee":
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 1.
         shape[:size // 3, :] = 1.
-    elif name == "inverse_plus":
+    elif name == "inverseplus":
         shape[:, :] = 1.
         shape[:, size // 2 - size // 6: size // 2 + size //6 + 1] = 0.
         shape[size // 2 - size // 6: size // 2 + size //6 + 1, :] = 0.
-    elif name == "empty_square":
+    elif name == "emptysquare":
         shape[:, :size // 8] = 1.
         shape[:, -size // 8:] = 1.
         shape[:size // 8, :] = 1.
         shape[-size // 8:, :] = 1.
+    elif name == "emptytriangle":
+        for i in range(size):
+            for j in range(size):
+                if np.abs(np.abs(j - size // 2) - np.abs(i // 2)) < size // 10:
+                    shape[i, j] = 1.
+        shape[-size // 10:, :] = 1.
     return shape
 
 
 _base_templates = {(s, sz): _render_plain_shape(s, sz) for s in BASE_SHAPES for sz in BASE_SIZES} 
 
 def render_uncolored_shape(name, size):
+    "Shape without color dimension, at random rotation and position."
     template = _base_templates[(name, size)]
     angle = np.random.randint(-RANDOM_ANGLE_RANGE, RANDOM_ANGLE_RANGE)
     shape = scipy.ndimage.rotate(template, angle, order=1)
@@ -373,7 +381,6 @@ if __name__ == "__main__":
             for sz in BASE_SIZES:
                 for c in BASE_COLORS.keys():
                     inst = categorization_instance(s, c, sz)
-                    print(inst, t.apply(inst))
                 plt.imshow(inst.render())
                 plt.show()
 
