@@ -7,8 +7,8 @@ import scipy.ndimage
 
 import matplotlib.pyplot as plt
 
-BASE_SHAPES = [#"triangle", "square", 
-               #"plus", "circle", "tee",
+BASE_SHAPES = ["triangle", "square", 
+               "plus", "circle", "tee",
                "inverseplus", "emptysquare",
                "emptytriangle"]
 BASE_COLORS = {

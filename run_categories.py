@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_93/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_94/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -22,7 +22,7 @@ run_config.update({
                        # color switching (all except holdouts) 
                        "switch_color_blue~pink", "switch_color_blue~purple", "switch_color_blue~yellow", "switch_color_blue~ocean", "switch_color_blue~green", "switch_color_blue~cyan", "switch_color_blue~red", "switch_color_pink~blue", "switch_color_pink~purple", "switch_color_pink~yellow", "switch_color_pink~ocean", "switch_color_pink~green", "switch_color_pink~cyan", "switch_color_pink~red", "switch_color_purple~blue", "switch_color_purple~pink", "switch_color_purple~ocean", "switch_color_purple~green", "switch_color_purple~cyan", "switch_color_purple~red", "switch_color_yellow~blue", "switch_color_yellow~pink", "switch_color_yellow~ocean", "switch_color_yellow~green", "switch_color_yellow~cyan", "switch_color_yellow~red", "switch_color_ocean~blue", "switch_color_ocean~pink", "switch_color_ocean~purple", "switch_color_ocean~yellow", "switch_color_ocean~green", "switch_color_ocean~cyan", "switch_color_ocean~red", "switch_color_green~blue", "switch_color_green~pink", "switch_color_green~purple", "switch_color_green~yellow", "switch_color_green~ocean", "switch_color_green~cyan", "switch_color_green~red", "switch_color_cyan~blue", "switch_color_cyan~pink", "switch_color_cyan~purple", "switch_color_cyan~yellow", "switch_color_cyan~ocean", "switch_color_cyan~green", "switch_color_cyan~red", "switch_color_red~blue", "switch_color_red~pink", "switch_color_red~purple", "switch_color_red~yellow", "switch_color_red~ocean", "switch_color_red~green", "switch_color_red~cyan",
                        # shape_switching (all except holdouts)
-                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus",
+                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus", "switch_shape_triangle~emptytriangle", "switch_shape_square~emptytriangle", "switch_shape_plus~emptytriangle", "switch_shape_circle~emptytriangle", "switch_shape_tee~emptytriangle", "switch_shape_inverseplus~emptytriangle", "switch_shape_emptysquare~emptytriangle", "switch_shape_emptytriangle~emptytriangle", "switch_shape_emptytriangle~triangle", "switch_shape_emptytriangle~square", "switch_shape_emptytriangle~plus", "switch_shape_emptytriangle~circle", "switch_shape_emptytriangle~tee", "switch_shape_emptytriangle~inverseplus", "switch_shape_emptytriangle~emptysquare", "switch_shape_emptytriangle~emptytriangle", 
                        # size switching (all)
                        #"switch_size_16~24", "switch_size_24~16", "switch_size_24~32", "switch_size_32~24", "switch_size_16~32", "switch_size_32~16",
                        ],
@@ -51,7 +51,7 @@ run_config.update({
 
     "num_epochs": 1000000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
-    "note": "random angle range reduced; no negation; no size meta; more meta color"
+    "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape"
 })
 
 
@@ -70,7 +70,7 @@ architecture_config.update({
     "F_weight_normalization": True,
     "F_wn_strategy": "standard",
 
-    "F_num_hidden_layers": 0,
+    "F_num_hidden_layers": 3,
     "mlp_output": True,
 
 #    "train_drop_prob": 0.5,
