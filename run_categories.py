@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_94/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_104/",
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -31,6 +31,7 @@ run_config.update({
                            ],
 
     "include_size_tasks": True,
+    "train_ext_composite_tasks": 200,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -38,8 +39,9 @@ run_config.update({
     "eval_every": 20,
     "lr_decays_every": 400,
 
-    "init_learning_rate": 5e-5,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 2e-5,  # for meta-classification and mappings
+    "init_learning_rate": 3e-5,  # initial learning rate for base tasks
+    "init_language_learning_rate": 3e-5,  
+    "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
 #    "language_lr_decay": 0.8, 
@@ -67,7 +69,7 @@ architecture_config.update({
     "F_num_hidden": 128,
     "optimizer": "Adam",
 
-    "F_weight_normalization": True,
+    "F_weight_normalization": False,
     "F_wn_strategy": "standard",
 
     "F_num_hidden_layers": 3,
@@ -338,8 +340,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:110]
-        eval_composite_tasks += composite_tasks[110:]
+        train_composite_tasks += composite_tasks[:run_config["train_ext_composite_tasks"]]
+        eval_composite_tasks += composite_tasks[run_config["train_ext_composite_tasks"]:]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
