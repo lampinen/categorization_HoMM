@@ -11,7 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_104/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_109/",
+
+    "run_offset": 0,
+    "num_runs": 5,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -31,7 +34,8 @@ run_config.update({
                            ],
 
     "include_size_tasks": True,
-    "train_ext_composite_tasks": 200,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
+    "include_pair_tasks": False,
+    "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -195,21 +199,22 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             run_config["base_train_tasks"] += basic_size_tasks 
 
         # and sampling of subsets trained and held out, but sampled to leave some interesting eval tasks 
-        color_pair_tasks = [category_tasks.basic_rule("color", [x, y]) for x, y in combinations(category_tasks.BASE_COLORS.keys(), 2)]  
-        train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
-        run_config["base_train_tasks"] += train_color_pair_tasks 
+        if run_config["include_pair_tasks"]:
+            color_pair_tasks = [category_tasks.basic_rule("color", [x, y]) for x, y in combinations(category_tasks.BASE_COLORS.keys(), 2)]  
+            train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
+            run_config["base_train_tasks"] += train_color_pair_tasks 
 
-        train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "emptysquare"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emptysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
-        run_config["base_train_tasks"] += train_shape_pair_tasks 
+            train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "emptysquare"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emptysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
+            run_config["base_train_tasks"] += train_shape_pair_tasks 
 
-        if run_config["include_size_tasks"]:
-            run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
+            if run_config["include_size_tasks"]:
+                run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
 
-        # and eval tasks that target the meta-mappings, especially held-out ones:
-        run_config["base_eval_tasks"] += [x for x in color_pair_tasks if x not in train_color_pair_tasks]
-        run_config["base_eval_tasks"] += [category_tasks.basic_rule("shape", ["triangle", "circle"])] 
-        if run_config["include_size_tasks"]:
-            run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["24", "32"])] 
+            # and eval tasks
+            run_config["base_eval_tasks"] += [x for x in color_pair_tasks if x not in train_color_pair_tasks]
+            run_config["base_eval_tasks"] += [category_tasks.basic_rule("shape", ["triangle", "circle"])] 
+            if run_config["include_size_tasks"]:
+                run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["24", "32"])] 
 
         # now feature-conjunctive tasks, part random, with targeted holdouts 
         colors = category_tasks.BASE_COLORS.keys()
@@ -594,7 +599,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
 
 ## running stuff
-for run_i in range(run_config["num_runs"]):
+for run_i in range(run_config["run_offset"], run_config["run_offset"] + run_config["num_runs"]):
     np.random.seed(run_i)
     tf.set_random_seed(run_i)
     run_config["this_run"] = run_i
