@@ -375,6 +375,19 @@ if __name__ == "__main__":
     tasks.append(composite_rule("XOR", tasks[1], tasks[2]))
     tasks.append(composite_rule("AND", tasks[1], tasks[2]))
     tasks.append(composite_rule("AND", tasks[-2], tasks[-1]))  # always false
+
+    sz = BASE_SIZES[-1]
+    for s in ["triangle", "inverseplus", "emptysquare", "circle"]:
+        for c in ["red", "yellow", "purple", "cyan"]:
+            inst = categorization_instance(s, c, sz)
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(3, 3)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(inst.render(), aspect='auto')
+            plt.savefig("stimulus_renders/%s_%s_%s.png" % (sz, c, s))
+
     for t in tasks:
         print(t)
         for s in BASE_SHAPES:
