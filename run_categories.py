@@ -112,6 +112,17 @@ if False:  # enable for language baseline
         "output_dir": run_config["output_dir"] + "language/",  # subfolder
     })
 
+if True:  # enable for homoiconic language-based training and meta-mapping 
+    run_config.update({
+        "train_language_base": True,
+        "train_language_meta": True,
+        "train_base": False,
+        "train_meta": False,
+
+        "vocab": ["PAD"] + ["is", "basic", "rule", "relevant", "switch"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&", "~"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
+
+        "output_dir": run_config["output_dir"] + "language_HoMM/",  # subfolder
+    })
 
 class memory_buffer(object):
     """Essentially a wrapper around numpy arrays that handles inserting and
@@ -579,21 +590,31 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         vocab_d = self.vocab_dict
         max_sentence_len = self.architecture_config["max_sentence_len"]
 
-        def intify_basic(basic_task_name):
-            attribute_type, matches = basic_task_name.split("=")
-            matches = matches.split("&") 
-            full = [attribute_type, "="] + [x for m in matches for x in (m, "&")][:-1]
-            return [vocab_d[x] for x in full]
-        
-        paren_split = re.split("[()]", task_name)
-        if paren_split[0] in ["AND", "OR", "XOR"]:  # composite
-            basic_1 = intify_basic(paren_split[2])
-            basic_2 = intify_basic(paren_split[4])
-            full = [vocab_d[paren_split[0]]] + [vocab_d["("]] * 2 + basic_1
-            full += [vocab_d[")"], vocab_d["&"], vocab_d["("]] + basic_2
-            full += [vocab_d[")"]] * 2
-        else:
-            full =  intify_basic(task_name)
+        underscore_split = task_name.split("_")
+        if underscore_split[0] == "is":  #meta class
+            full = [vocab_d[x] for x in underscore_split]
+        elif underscore_split[0] == "switch":  # meta map 
+            full = underscore_split[:2]
+            for x in underscore_split[2:]:
+                split_x = x.split("~")
+                full += [split_x[0], "~", split_x[1]]
+            full = [vocab_d[x] for x in full]
+        else:  # basic task
+            def intify_basic(basic_task_name):
+                attribute_type, matches = basic_task_name.split("=")
+                matches = matches.split("&") 
+                full = [attribute_type, "="] + [x for m in matches for x in (m, "&")][:-1]
+                return [vocab_d[x] for x in full]
+            
+            paren_split = re.split("[()]", task_name)
+            if paren_split[0] in ["AND", "OR", "XOR"]:  # composite
+                basic_1 = intify_basic(paren_split[2])
+                basic_2 = intify_basic(paren_split[4])
+                full = [vocab_d[paren_split[0]]] + [vocab_d["("]] * 2 + basic_1
+                full += [vocab_d[")"], vocab_d["&"], vocab_d["("]] + basic_2
+                full += [vocab_d[")"]] * 2
+            else:
+                full =  intify_basic(task_name)
 
         return [vocab_d["PAD"]] * (max_sentence_len - len(full)) + full
 
