@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_109/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_111/",
 
     "run_offset": 0,
     "num_runs": 5,
@@ -35,7 +35,7 @@ run_config.update({
 
     "include_size_tasks": True,
     "include_pair_tasks": False,
-    "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
+    "train_ext_composite_tasks": 100,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -48,7 +48,7 @@ run_config.update({
     "init_meta_learning_rate": 3e-5,  # for meta-classification and mappings
 
 #    "lr_decay": 0.85,  # how fast base task lr decays (multiplicative)
-#    "language_lr_decay": 0.8, 
+    "language_lr_decay": 0.85, 
 #    "meta_lr_decay": 0.85,
 
     "min_learning_rate": 1e-8,  # can't decay past these minimum values 
@@ -112,13 +112,15 @@ if False:  # enable for language baseline
         "output_dir": run_config["output_dir"] + "language/",  # subfolder
     })
 
-if True:  # enable for homoiconic language-based training and meta-mapping 
+if False:  # enable for homoiconic language-based training and meta-mapping 
     run_config.update({
         "train_language_base": True,
         "train_language_meta": True,
         "train_base": False,
         "train_meta": False,
 
+        "init_language_learning_rate": 5e-5,  
+        "init_language_meta_learning_rate": 2e-5,  
         "vocab": ["PAD"] + ["is", "basic", "rule", "relevant", "switch"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&", "~"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
         "output_dir": run_config["output_dir"] + "language_HoMM/",  # subfolder
