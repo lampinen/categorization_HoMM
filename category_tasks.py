@@ -358,7 +358,7 @@ def get_meta_pairings(base_train_tasks, base_eval_tasks, meta_class_train_tasks,
         else:
             for task in base_train_tasks:
                 res = meta_mapping(task)
-                if res is not None:
+                if res is not None and res != task:
                     if res in base_train_tasks:
                         meta_pairings[mt]["train"].append((str(task), str(res)))
                     elif res in base_eval_tasks:

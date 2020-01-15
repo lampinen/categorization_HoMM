@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_111/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_113/",
 
     "run_offset": 0,
-    "num_runs": 5,
+    "num_runs": 1,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -22,10 +22,10 @@ run_config.update({
     "meta_class_train_tasks": ["is_basic_rule_shape", "is_basic_rule_color", "is_basic_rule_size", "is_relevant_shape", "is_relevant_color", "is_relevant_size", "is_OR", "is_AND", "is_XOR"],
     "meta_class_eval_tasks": [],
     "meta_map_train_tasks": [#"NOT",
-                       # color switching (all except holdouts) 
+                       # color switching (all except holdouts, but note some may get dropped) 
                        "switch_color_blue~pink", "switch_color_blue~purple", "switch_color_blue~yellow", "switch_color_blue~ocean", "switch_color_blue~green", "switch_color_blue~cyan", "switch_color_blue~red", "switch_color_pink~blue", "switch_color_pink~purple", "switch_color_pink~yellow", "switch_color_pink~ocean", "switch_color_pink~green", "switch_color_pink~cyan", "switch_color_pink~red", "switch_color_purple~blue", "switch_color_purple~pink", "switch_color_purple~ocean", "switch_color_purple~green", "switch_color_purple~cyan", "switch_color_purple~red", "switch_color_yellow~blue", "switch_color_yellow~pink", "switch_color_yellow~ocean", "switch_color_yellow~green", "switch_color_yellow~cyan", "switch_color_yellow~red", "switch_color_ocean~blue", "switch_color_ocean~pink", "switch_color_ocean~purple", "switch_color_ocean~yellow", "switch_color_ocean~green", "switch_color_ocean~cyan", "switch_color_ocean~red", "switch_color_green~blue", "switch_color_green~pink", "switch_color_green~purple", "switch_color_green~yellow", "switch_color_green~ocean", "switch_color_green~cyan", "switch_color_green~red", "switch_color_cyan~blue", "switch_color_cyan~pink", "switch_color_cyan~purple", "switch_color_cyan~yellow", "switch_color_cyan~ocean", "switch_color_cyan~green", "switch_color_cyan~red", "switch_color_red~blue", "switch_color_red~pink", "switch_color_red~purple", "switch_color_red~yellow", "switch_color_red~ocean", "switch_color_red~green", "switch_color_red~cyan",
-                       # shape_switching (all except holdouts)
-                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus", "switch_shape_triangle~emptytriangle", "switch_shape_square~emptytriangle", "switch_shape_plus~emptytriangle", "switch_shape_circle~emptytriangle", "switch_shape_tee~emptytriangle", "switch_shape_inverseplus~emptytriangle", "switch_shape_emptysquare~emptytriangle", "switch_shape_emptytriangle~emptytriangle", "switch_shape_emptytriangle~triangle", "switch_shape_emptytriangle~square", "switch_shape_emptytriangle~plus", "switch_shape_emptytriangle~circle", "switch_shape_emptytriangle~tee", "switch_shape_emptytriangle~inverseplus", "switch_shape_emptytriangle~emptysquare", "switch_shape_emptytriangle~emptytriangle", 
+                       # shape_switching (all except holdouts, but note some may get dropped)
+                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus", "switch_shape_triangle~emptytriangle", "switch_shape_square~emptytriangle", "switch_shape_plus~emptytriangle", "switch_shape_circle~emptytriangle", "switch_shape_tee~emptytriangle", "switch_shape_inverseplus~emptytriangle", "switch_shape_emptysquare~emptytriangle", "switch_shape_emptytriangle~triangle", "switch_shape_emptytriangle~square", "switch_shape_emptytriangle~plus", "switch_shape_emptytriangle~circle", "switch_shape_emptytriangle~tee", "switch_shape_emptytriangle~inverseplus", "switch_shape_emptytriangle~emptysquare"
                        # size switching (all)
                        #"switch_size_16~24", "switch_size_24~16", "switch_size_24~32", "switch_size_32~24", "switch_size_16~32", "switch_size_32~16",
                        ],
@@ -35,7 +35,8 @@ run_config.update({
 
     "include_size_tasks": True,
     "include_pair_tasks": False,
-    "train_ext_composite_tasks": 100,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
+    "train_ext_composite_tasks": 80,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
+    "meta_min_train_threshold": 5,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -57,7 +58,7 @@ run_config.update({
 
     "num_epochs": 1000000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
-    "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape"
+    "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
 })
 
 
@@ -254,7 +255,60 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         else:
             composite_tasks = sc_composite_tasks
 
+        # some training examples for the held out mappings
         train_composite_tasks = [
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("shape", ["triangle"]),
+                category_tasks.basic_rule("color", ["yellow"])),
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("shape", ["triangle"]),
+                category_tasks.basic_rule("color", ["purple"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("shape", ["square"]),
+                category_tasks.basic_rule("color", ["yellow"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("shape", ["square"]),
+                category_tasks.basic_rule("color", ["purple"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("shape", ["emptytriangle"]),
+                category_tasks.basic_rule("color", ["yellow"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("shape", ["emptytriangle"]),
+                category_tasks.basic_rule("color", ["purple"])),
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("shape", ["plus"]),
+                category_tasks.basic_rule("color", ["green"])),
+            category_tasks.composite_rule(
+                "AND",
+                category_tasks.basic_rule("shape", ["circle"]),
+                category_tasks.basic_rule("color", ["green"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("shape", ["plus"]),
+                category_tasks.basic_rule("color", ["pink"])),
+            category_tasks.composite_rule(
+                "OR",
+                category_tasks.basic_rule("shape", ["circle"]),
+                category_tasks.basic_rule("color", ["pink"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("shape", ["plus"]),
+                category_tasks.basic_rule("color", ["cyan"])),
+            category_tasks.composite_rule(
+                "XOR",
+                category_tasks.basic_rule("shape", ["circle"]),
+                category_tasks.basic_rule("color", ["cyan"])),
+            ]
+
+        # and some eval
+        train_composite_tasks += [
             category_tasks.composite_rule(
                 "AND",
                 category_tasks.basic_rule("shape", ["circle"]),
@@ -407,6 +461,16 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             meta_class_eval_tasks=self.meta_class_eval_tasks,
             meta_map_train_tasks=self.meta_map_train_tasks,
             meta_map_eval_tasks=self.meta_map_eval_tasks) 
+
+        # drop metamappings with too few training items
+        to_remove = []
+        for k,v in list(self.meta_pairings.items()):
+            if len(v["train"]) < run_config["meta_min_train_threshold"]:
+                del self.meta_pairings[k]
+                to_remove.append(k)
+
+        self.meta_map_train_tasks = [x for x in self.meta_map_train_tasks if x not in to_remove]
+        self.meta_map_eval_tasks = [x for x in self.meta_map_eval_tasks if x not in to_remove]
 
         # and the base data points
         self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
