@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_120/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_132/",
 
     "run_offset": 0,
     "num_runs": 1,
@@ -33,10 +33,10 @@ run_config.update({
                             "switch_shape_plus~circle", #"switch_shape_circle~plus",
                            ],
 
-    "include_size_tasks": True,
+    "include_size_tasks": False,
     "include_pair_tasks": False,
-    "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
-    "meta_min_train_threshold": 5,  # minimum number of train items for a mapping, those with fewer will be removed 
+    "train_ext_composite_tasks": 30,  # should be sufficiently less than 54 (with current settings) to leave enough test tasks
+    "meta_min_train_threshold": 8,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -45,7 +45,7 @@ run_config.update({
     "lr_decays_every": 400,
 
     "init_learning_rate": 3e-5,  # initial learning rate for base tasks
-    "init_meta_learning_rate": 1e-5,  # for meta-classification and mappings
+    "init_meta_learning_rate": 1e-6,  # for meta-classification and mappings
 
     "lr_decay": 0.8,  # how fast base task lr decays (multiplicative)
     "meta_lr_decay": 0.85,
@@ -93,19 +93,12 @@ architecture_config.update({
                       [512, 2, 2, True]],
 })
 
-if False:  # enable for persistent
-    architecture_config.update({
-        "persistent_task_reps": True,
-        "combined_emb_guess_weight": "varied",
-        "emb_match_loss_weight": 0.2,
-    })
-
 if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
         "train_meta": False,
-        "init_language_learning_rate": 5e-5,  
+        "init_language_learning_rate": 3e-5,  
 
         "vocab": ["PAD"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
@@ -119,13 +112,21 @@ if False:  # enable for homoiconic language-based training and meta-mapping
         "train_base": False,
         "train_meta": False,
 
-        "init_language_learning_rate": 5e-5,  
-        "init_language_meta_learning_rate": 2e-5,  
+        "init_language_learning_rate": 3e-5,  
+        "init_language_meta_learning_rate": 1e-6,  
         "language_lr_decay": 0.85, 
         "vocab": ["PAD"] + ["is", "basic", "rule", "relevant", "switch"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&", "~"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
         "output_dir": run_config["output_dir"] + "language_HoMM/",  # subfolder
     })
+
+if False:  # enable for persistent
+    architecture_config.update({
+        "persistent_task_reps": True,
+        "combined_emb_guess_weight": "varied",
+        "emb_match_loss_weight": 0.2,
+    })
+
 
 class memory_buffer(object):
     """Essentially a wrapper around numpy arrays that handles inserting and
@@ -273,14 +274,38 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 "OR",
                 category_tasks.basic_rule("shape", ["square"]),
                 category_tasks.basic_rule("color", ["purple"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["emptytriangle"]),
+#                category_tasks.basic_rule("color", ["yellow"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["emptytriangle"]),
+#                category_tasks.basic_rule("color", ["purple"])),
             category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["emptytriangle"]),
+                "AND",
+                category_tasks.basic_rule("shape", ["inverseplus"]),
                 category_tasks.basic_rule("color", ["yellow"])),
             category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["emptytriangle"]),
+                "AND",
+                category_tasks.basic_rule("shape", ["inverseplus"]),
                 category_tasks.basic_rule("color", ["purple"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["tee"]),
+#                category_tasks.basic_rule("color", ["yellow"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["tee"]),
+#                category_tasks.basic_rule("color", ["purple"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["emptysquare"]),
+#                category_tasks.basic_rule("color", ["yellow"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["emptysquare"]),
+#                category_tasks.basic_rule("color", ["purple"])),
             category_tasks.composite_rule(
                 "AND",
                 category_tasks.basic_rule("shape", ["plus"]),
@@ -289,22 +314,46 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                 "AND",
                 category_tasks.basic_rule("shape", ["circle"]),
                 category_tasks.basic_rule("color", ["green"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["plus"]),
+#                category_tasks.basic_rule("color", ["pink"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["circle"]),
+#                category_tasks.basic_rule("color", ["pink"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["plus"]),
+#                category_tasks.basic_rule("color", ["cyan"])),
+#            category_tasks.composite_rule(
+#                "XOR",
+#                category_tasks.basic_rule("shape", ["circle"]),
+#                category_tasks.basic_rule("color", ["cyan"])),
             category_tasks.composite_rule(
-                "OR",
+                "AND",
                 category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["pink"])),
+                category_tasks.basic_rule("color", ["red"])),
             category_tasks.composite_rule(
-                "OR",
+                "AND",
                 category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["pink"])),
+                category_tasks.basic_rule("color", ["red"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["plus"]),
+#                category_tasks.basic_rule("color", ["ocean"])),
+#            category_tasks.composite_rule(
+#                "OR",
+#                category_tasks.basic_rule("shape", ["circle"]),
+#                category_tasks.basic_rule("color", ["ocean"])),
             category_tasks.composite_rule(
                 "XOR",
                 category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["cyan"])),
+                category_tasks.basic_rule("color", ["blue"])),
             category_tasks.composite_rule(
                 "XOR",
                 category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["cyan"])),
+                category_tasks.basic_rule("color", ["blue"])),
             ]
 
         # and some eval
@@ -411,6 +460,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
         np.random.shuffle(composite_tasks)
+        print(len(composite_tasks))
 
         train_composite_tasks += composite_tasks[:run_config["train_ext_composite_tasks"]]
         eval_composite_tasks += composite_tasks[run_config["train_ext_composite_tasks"]:]
@@ -468,9 +518,13 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             if len(v["train"]) < run_config["meta_min_train_threshold"]:
                 del self.meta_pairings[k]
                 to_remove.append(k)
+        print(to_remove)
 
         self.meta_map_train_tasks = [x for x in self.meta_map_train_tasks if x not in to_remove]
         self.meta_map_eval_tasks = [x for x in self.meta_map_eval_tasks if x not in to_remove]
+
+        print(len(self.meta_map_train_tasks))
+        print(self.meta_map_eval_tasks)
 
         # and the base data points
         self.all_concept_instances = [category_tasks.categorization_instance(s, c, sz) for s in category_tasks.BASE_SHAPES for c in category_tasks.BASE_COLORS.keys() for sz in category_tasks.BASE_SIZES] 
