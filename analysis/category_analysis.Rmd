@@ -12,68 +12,12 @@ library(tidyverse)
 
 ```{r}
 parent_dir = ".."
-subdirs = c(#"results_0", #"results_1", 
-            #"results_2",
-            #"results_3", "results_4",
-            #"results_5", "results_6",
-            #"results_7", 
-            #"results_8",# "results_9",
-            #"results_10", 
-            #"results_11", #"results_12",
-            #"results_13", "results_14",
-            #"results_15",
-            #"results_16", "results_17", "results_18", "results_19",
-            #"results_20", 
-            #"results_21", "results_22",
-            #"results_23", "results_24", "results_25", 
-            #"results_26", "results_27",
-            #"results_28", "results_29",
-            #"results_30", 
-            #"results_31", #"results_32",
-            #"results_33", "results_34", "results_35", 
-            #"results_36", "results_37", "results_38",
-            #"results_40", "results_41", "results_42", "results_43",
-            #"results_44",
-            #"results_45", 
-            #"results_46", "results_47", "results_48", 
-            #"results_49",
-            ## without negation
-            #"results_50", "results_51", "results_52",
-            #"results_53", "results_54",
-            ## contrasting examples
-            #"results_55", "results_56", "results_57", "results_58", "results_59", "results_60",
-            #"results_61", "results_62", "results_63", "results_64",
-            # weight norm
-            #"results_65", "results_66",
-            #"results_67", "results_68",
-            #"results_69", "results_70",
-            #"results_71",
-            #"results_72", "results_73", #"results_74",
-            #"results_75", "results_76", "results_77",
-            # even more tasks
-            #"results_78", "results_79", "results_80",
-            # no size meta
-            #"results_81",
-            #"results_82", "results_83", "results_84", 
-            #"results_85",
-            #"results_86", #"results_87", "results_88", 
-            #"results_89",
-            #"results_90", "results_91", "results_92", "results_93"
-            ## Crucial bugfix in stimulus generation
-            #"results_94",
-            #"results_95",# "results_96", "results_97", "results_98", "results_99"
-            #"results_100", 
-            #"results_101", #"results_102", "results_103", "results_104"
-            #"results_105", "results_106", "results_107", "results_108
-            #"results_109"#, "results_110"
-            #"results_123"
-            ## Bugfix in meta-mapping domains
-            #"results_117", "results_118", "results_119", "results_120"
-            "results_123", "results_124", "results_125"
+subdirs = c(
+            "results_123"
             )
 
 lang_subdirs = c("results_123/language")
-lang_homm_subdirs = c("results_123/language_HoMM", "results_124/language_HoMM", "results_125/language_HoMM")
+lang_homm_subdirs = c("results_123/language_HoMM")
 num_runs = 5
 ```
 
@@ -240,17 +184,17 @@ ggplot(meta_true_d %>%
 ```
 
 ```{r}
-ggplot(meta_true_d %>%
-         filter(!grepl("results_123", run_type)),
-       aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
-  geom_line(stat="summary",
-            fun.y="mean") +
-  facet_grid(run ~ base_task_type + run_type, scales="free")
+# ggplot(meta_true_d %>%
+#          filter(!grepl("results_123", run_type)),
+#        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
+#   geom_line(stat="summary",
+#             fun.y="mean") +
+#   facet_grid(run ~ base_task_type + run_type, scales="free")
 ```
 
 ```{r}
 ggplot(lang_meta_true_d %>%
-         filter(!grepl("results_123", run_type)),
+         filter(grepl("results_123", run_type)),
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="mean") +
@@ -299,6 +243,8 @@ ggplot(lang_loss_d %>%
                 composite_type %in% c("AND", "XOR"),
                 grepl("123", run_type)),
        aes(x=epoch, y=loss, color=train_or_eval)) +
+  
+  geom_hline(yintercept=0.9) +
   geom_line(stat="summary",
             fun.y="mean")
 ``` 
@@ -320,7 +266,8 @@ ggplot(lang_meta_true_d %>%
        aes(x=epoch, y=loss, color=base_task_toe, linetype=mapping_toe)) +
   geom_line(stat="summary",
             fun.y="mean") +
-  facet_wrap(run_type ~ meta_task_type)
+  geom_hline(yintercept=0.9) +
+  facet_wrap(run ~ meta_task_type)
 ```
 
 # comparison
@@ -471,12 +418,12 @@ ggplot(data=comparison_d %>%
   labs(x="Model type", y="Accuracy") +
   annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
   annotate("text", x=0.7, y=1.02, alpha=0.5, label="Optimal adaptation") +
-  # annotate("path",x=c(1,1,2,2),y=c(1.1,1.2,1.2,1.1),alpha=0.5) +
-  # annotate("text", x=1.5, y=1.28, alpha=0.5, label="p < 0.05 (both perm- and t-test)") +
+  annotate("path",x=c(1,1,2,2),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  annotate("text", x=1.5, y=1.1, alpha=0.5, label="p < 0.001 (both perm- and t-test)") +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) +
   guides(color=F)
 
-ggsave("../../../assorted_talks/HoMM/figures/categories_adaptation_no_lh.png", width=6, height=4)
+#ggsave("../../../assorted_talks/HoMM/figures/categories_adaptation_no_lh.png", width=6, height=4)
 ```
 
 
@@ -499,11 +446,13 @@ ggplot(data=comparison_d,
   labs(x="Model type", y="Accuracy") +
   annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
   annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
-  # annotate("path",x=c(1,1,2,2),y=c(1.1,1.2,1.2,1.1),alpha=0.5) +
-  # annotate("text", x=1.5, y=1.28, alpha=0.5, label="p < 0.05 (both perm- and t-test)") +
+  annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  annotate("text", x=1.5, y=1.1, alpha=0.5, label="p < 0.001 (both perm- and t-test)") +
+  annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  annotate("text", x=2.5, y=1.1, alpha=0.5, label="n.s. (both ps > 0.05)") +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) +
   guides(color=F)
 
-ggsave("../../../assorted_talks/HoMM/figures/categories_adaptation.png", width=6, height=4)
+#ggsave("../../../assorted_talks/HoMM/figures/categories_adaptation.png", width=6, height=4)
 ```
 
