@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_120/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_123/",
 
     "run_offset": 0,
     "num_runs": 1,
@@ -36,7 +36,7 @@ run_config.update({
     "include_size_tasks": True,
     "include_pair_tasks": False,
     "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
-    "meta_min_train_threshold": 5,  # minimum number of train items for a mapping, those with fewer will be removed 
+    "meta_min_train_threshold": 6,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -93,13 +93,6 @@ architecture_config.update({
                       [512, 2, 2, True]],
 })
 
-if False:  # enable for persistent
-    architecture_config.update({
-        "persistent_task_reps": True,
-        "combined_emb_guess_weight": "varied",
-        "emb_match_loss_weight": 0.2,
-    })
-
 if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
@@ -125,6 +118,13 @@ if False:  # enable for homoiconic language-based training and meta-mapping
         "vocab": ["PAD"] + ["is", "basic", "rule", "relevant", "switch"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&", "~"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
         "output_dir": run_config["output_dir"] + "language_HoMM/",  # subfolder
+    })
+
+if False:  # enable for persistent
+    architecture_config.update({
+        "persistent_task_reps": True,
+        "combined_emb_guess_weight": "varied",
+        "emb_match_loss_weight": 0.2,
     })
 
 class memory_buffer(object):
