@@ -8,20 +8,18 @@ import scipy.ndimage
 import matplotlib.pyplot as plt
 
 BASE_SHAPES = ["triangle", "square", 
-               "plus", "circle",# "tee",
-               "inverseplus", 
-               #"emptysquare",
-               #"emptytriangle"
-               ]
+               "plus", "circle", "tee",
+               "inverseplus", "emptysquare",
+               "emptytriangle"]
 BASE_COLORS = {
     "red": (1., 0., 0.),
     "green": (0., 1., 0.),
     "blue": (0., 0., 1.),
     "yellow": (1., 1, 0.),
-#    "pink": (1., 0.4, 1.),
-#    "cyan": (0., 1., 1.),
+    "pink": (1., 0.4, 1.),
+    "cyan": (0., 1., 1.),
     "purple": (0.3, 0., 0.5),
-#    "ocean": (0.1, 0.4, 0.5),
+    "ocean": (0.1, 0.4, 0.5),
     #"orange": (1., 0.6, 0.),
     #"forest": (0., 0.5, 0.),
 }
