@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_123/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_135/",
 
     "run_offset": 0,
     "num_runs": 1,
@@ -36,7 +36,7 @@ run_config.update({
     "include_size_tasks": True,
     "include_pair_tasks": False,
     "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
-    "meta_min_train_threshold": 6,  # minimum number of train items for a mapping, those with fewer will be removed 
+    "meta_min_train_threshold": 10,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
 
@@ -75,7 +75,7 @@ architecture_config.update({
     "F_weight_normalization": False,
     "F_wn_strategy": "standard",
 
-    "F_num_hidden_layers": 3,
+    "F_num_hidden_layers": 0,
     "mlp_output": True,
 
 #    "train_drop_prob": 0.5,
@@ -98,7 +98,7 @@ if False:  # enable for language baseline
         "train_language_base": True,
         "train_base": False,
         "train_meta": False,
-        "init_language_learning_rate": 5e-5,  
+        "init_language_learning_rate": 3e-5,  
 
         "vocab": ["PAD"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
@@ -112,8 +112,8 @@ if False:  # enable for homoiconic language-based training and meta-mapping
         "train_base": False,
         "train_meta": False,
 
-        "init_language_learning_rate": 5e-5,  
-        "init_language_meta_learning_rate": 2e-5,  
+        "init_language_learning_rate": 3e-5,  
+        "init_language_meta_learning_rate": 1e-5,  
         "language_lr_decay": 0.85, 
         "vocab": ["PAD"] + ["is", "basic", "rule", "relevant", "switch"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&", "~"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
@@ -124,7 +124,7 @@ if False:  # enable for persistent
     architecture_config.update({
         "persistent_task_reps": True,
         "combined_emb_guess_weight": "varied",
-        "emb_match_loss_weight": 0.2,
+        "emb_match_loss_weight": 0.05,
     })
 
 class memory_buffer(object):
