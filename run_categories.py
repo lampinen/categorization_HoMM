@@ -11,9 +11,9 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_135/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_136/",
 
-    "run_offset": 0,
+    "run_offset": 4,
     "num_runs": 1,
     
     "base_train_tasks": [], 
@@ -75,8 +75,8 @@ architecture_config.update({
     "F_weight_normalization": False,
     "F_wn_strategy": "standard",
 
-    "F_num_hidden_layers": 0,
-    "mlp_output": True,
+    "F_num_hidden_layers": 3,
+    "mlp_output": False,
 
 #    "train_drop_prob": 0.5,
 
@@ -93,7 +93,7 @@ architecture_config.update({
                       [512, 2, 2, True]],
 })
 
-if False:  # enable for language baseline
+if True:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
