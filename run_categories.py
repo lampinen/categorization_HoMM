@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM/results_136/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_size_sweep/results_ntrain_150/",
 
-    "run_offset": 4,
-    "num_runs": 1,
+    "run_offset": 0,
+    "num_runs": 5,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -35,7 +35,7 @@ run_config.update({
 
     "include_size_tasks": True,
     "include_pair_tasks": False,
-    "train_ext_composite_tasks": 140,  # should be sufficiently less than 314 (with current settings) to leave enough test tasks
+    "train_ext_composite_tasks": 103,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
     "meta_min_train_threshold": 10,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
@@ -54,7 +54,7 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 1e-8,
 
-    "num_epochs": 1000000,
+    "num_epochs": 5000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
 })
@@ -75,8 +75,8 @@ architecture_config.update({
     "F_weight_normalization": False,
     "F_wn_strategy": "standard",
 
-    "F_num_hidden_layers": 3,
-    "mlp_output": False,
+    "F_num_hidden_layers": 0,
+    "mlp_output": True,
 
 #    "train_drop_prob": 0.5,
 
@@ -93,7 +93,7 @@ architecture_config.update({
                       [512, 2, 2, True]],
 })
 
-if True:  # enable for language baseline
+if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
@@ -103,6 +103,10 @@ if True:  # enable for language baseline
         "vocab": ["PAD"] + ["AND", "OR", "XOR"] + ["(", ")", "=", "&"] + ["shape", "size", "color"] + category_tasks.BASE_SIZES + category_tasks.BASE_SHAPES + list(category_tasks.BASE_COLORS.keys()),
 
         "output_dir": run_config["output_dir"] + "language/",  # subfolder
+    })
+    architecture_config.update({
+        "F_num_hidden_layers": 3,
+        "mlp_output": False,
     })
 
 if False:  # enable for homoiconic language-based training and meta-mapping 
@@ -417,6 +421,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
+        print(len(run_config["base_train_tasks"]))
 
         # and some negations
 #        train_negations = []
