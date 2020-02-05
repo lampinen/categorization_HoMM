@@ -6,6 +6,8 @@ output: html_document
 
 ```{r}
 library(tidyverse)
+library(lme4)
+library(lmerTest)
 ```
 
 # data loading
@@ -16,7 +18,7 @@ subdirs = c(
             "results_135"
             )
 
-lang_subdirs = c("results_136/language") #"results_135/language")
+lang_subdirs = c("results_136/language", "results_135/language")
 lang_homm_subdirs = c("results_135/language_HoMM")
 num_runs = 5
 ```
@@ -396,8 +398,21 @@ contrasts(comparison_d$run_type) = cbind(HoMM=c(1, 0, 0), LangHoMM=c(0, 0, 1))
 lm(mean_accuracy~ run_type,
    comparison_d) %>%
   summary()
+lmer(mean_accuracy~ run_type + (1| run),
+     comparison_d) %>%
+  summary()
+
 ```
 
+```{r}
+set.seed(0)
+comparison_d %>% 
+  group_by(run_type) %>%
+  do(results=mean_cl_boot(.$mean_accuracy)) %>%
+  summarize(y=results$y,
+            ymin=results$ymin,
+            ymax=results$ymax)
+```
 
 ## and a plot
 
@@ -456,11 +471,110 @@ ggplot(data=comparison_d,
   guides(color=F)
 
 #ggsave("../../../assorted_talks/HoMM/figures/categories_adaptation.png", width=6, height=4)
-#ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation.png", width=6, height=4)
+ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation.png", width=6, height=4)
 ```
+
+```{r}
+ggplot(data=comparison_d %>% 
+         filter(!grepl("examples", run_type)),
+       aes(x=run_type, 
+           color=run_type,
+           y=mean_accuracy)) +
+  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
+  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  geom_errorbar(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=4) +
+  scale_color_manual(values=c("#477ec8", "#984ea3")) +
+  labs(x="Model type", y="Accuracy on evaluation tasks") +
+  annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
+  annotate("text", x=0.7, y=1.02, alpha=0.5, label="Optimal adaptation") +
+  annotate("path",x=c(1,1,2,2),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  annotate("text", x=1.5, y=1.1, alpha=0.5, label="p < 0.05") +
+  scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) +
+  guides(color=F)
+
+ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_language_only.png", width=6, height=4)
+```
+
+## validating the language model architecture
+
+```{r}
+lang_arch_d = lang_loss_d %>%
+  filter(accuracy,
+         train_or_eval == "eval",
+         composite == "composite",
+         composite_type %in% c("AND", "XOR"),
+         !is.na(loss)) %>%
+  mutate(task = gsub("_accuracy", "", task)) %>%
+  select(epoch, run, run_type, task, loss) %>%
+  inner_join(target_tasks_by_run) %>%
+  group_by(run_type, run, epoch) %>%
+  summarise(mean_accuracy = mean(loss, na.rm=T)) %>%
+  filter(epoch == test_epoch) %>%
+  ungroup() %>%
+  mutate(task_network = factor(run_type, labels=c("Linear (used for HoMM)", "Multi-layer nonlinear")))
+```
+```{r}
+set.seed(0)
+perm_mean_diff_test(
+  lang_arch_d %>%
+    filter(grepl("135", run_type)) %>%
+    pull(mean_accuracy),
+  lang_arch_d %>%
+    filter(grepl("136", run_type)) %>%
+    pull(mean_accuracy)
+)
+
+lmer(mean_accuracy~ run_type + (1| run),
+     lang_arch_d) %>%
+  summary()
+```
+```{r}
+set.seed(0)
+lang_arch_d %>% 
+  group_by(task_network) %>%
+  do(results=mean_cl_boot(.$mean_accuracy)) %>%
+  summarize(y=results$y,
+            ymin=results$ymin,
+            ymax=results$ymax)
+```
+
+```{r}
+ggplot(data=lang_arch_d,
+       aes(x=task_network, 
+           color=task_network,
+           y=mean_accuracy)) +
+  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
+  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  geom_errorbar(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=4) +
+  scale_color_manual(values=c("#073e88", "#477ec8")) +
+  labs(x="Task network architecture", y="Language generalization accuracy") +
+  annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
+  annotate("text", x=0.7, y=1.02, alpha=0.5, label="Optimal adaptation") +
+  annotate("path",x=c(1,1,2,2),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  annotate("text", x=1.5, y=1.1, alpha=0.5, label="p < 0.05") +
+  scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) +
+  guides(color=F)
+
+ggsave("../../../psych/dissertation/4-extending/figures/language_model_architecture_justification.png", width=6, height=4)
+```
+
+
+
 # now the eval comparison
 ```{r}
-target_tasks_by_run =  meta_true_d %>%
+eval_target_tasks_by_run =  meta_true_d %>%
   filter(epoch == 0,
          base_task_toe == "example_is_eval",
          mapping_toe == "metamapping_is_eval",
@@ -477,7 +591,7 @@ These results are going to vary more with test epoch, because the results are no
 
 ```{r}
 test_epoch = 5000
-comparison_d = bind_rows(lang_loss_d %>%
+eval_comparison_d = bind_rows(lang_loss_d %>%
                            filter(accuracy,
                                   train_or_eval == "eval",
                                   composite == "composite",
@@ -486,7 +600,7 @@ comparison_d = bind_rows(lang_loss_d %>%
                                   !is.na(loss)) %>%
                            mutate(task = gsub("_accuracy", "", task)) %>%
                            select(epoch, run, run_type, task, loss) %>%
-                           inner_join(target_tasks_by_run) %>%
+                           inner_join(eval_target_tasks_by_run) %>%
                            group_by(run_type, run, epoch) %>%
                            summarise(mean_accuracy = mean(loss, na.rm=T)) %>%
 #                           group_by(run_type, run) %>%
@@ -532,37 +646,37 @@ comparison_d = bind_rows(lang_loss_d %>%
 ```{r}
 set.seed(0)  # reproducibility
 perm_mean_diff_test(
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "HoMM from examples") %>%
     pull(mean_accuracy),
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "Language") %>%
     pull(mean_accuracy)
 )
 
 perm_mean_diff_test(
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "HoMM from examples") %>%
     pull(mean_accuracy),
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "HoMM from language") %>%
     pull(mean_accuracy)
 )
 
 perm_mean_diff_test(
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "Language") %>%
     pull(mean_accuracy),
-  comparison_d %>%
+  eval_comparison_d %>%
     filter(run_type == "HoMM from language") %>%
     pull(mean_accuracy)
 )
 ```
 
 ```{r}
-contrasts(comparison_d$run_type) = cbind(HoMM=c(1, 0, 0), LangHoMM=c(0, 0, 1))
+contrasts(eval_comparison_d$run_type) = cbind(HoMM=c(1, 0, 0), LangHoMM=c(0, 0, 1))
 lm(mean_accuracy~ run_type,
-   comparison_d) %>%
+   eval_comparison_d) %>%
   summary()
 ```
 
@@ -570,7 +684,7 @@ lm(mean_accuracy~ run_type,
 ## and a plot
 
 ```{r}
-ggplot(data=comparison_d %>%
+ggplot(data=eval_comparison_d %>%
          filter(run_type != "HoMM from language"),
        aes(x=run_type, 
            color=run_type,
@@ -599,7 +713,7 @@ ggplot(data=comparison_d %>%
 
 
 ```{r}
-ggplot(data=comparison_d,
+ggplot(data=eval_comparison_d,
        aes(x=run_type, 
            color=run_type,
            y=mean_accuracy)) +
