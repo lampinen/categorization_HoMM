@@ -1,0 +1,260 @@
+---
+title: "Category analysis"
+author: "Andrew Lampinen"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+# data loading
+
+```{r}
+parent_dir = "../categorization_HoMM_size_sweep"
+subdirs = c(
+            "results_ntrain_150",
+            "results_ntrain_200",
+            "results_ntrain_250",
+            "results_ntrain_300"
+            )
+
+lang_subdirs = paste(subdirs, "language", sep="/")
+lang_homm_subdirs = paste(subdirs, "language_HoMM", sep="/")
+num_runs = 5
+```
+
+```{r}
+read_config = function(config_file) { 
+  config = read_delim(config_file, delim="\n") %>%
+    separate(`key, value`, c("key", "value"), sep=",", extra="merge") %>%
+    spread(key, value) %>%
+    mutate_at(c("base_train_tasks", "base_eval_tasks", "meta_class_train_tasks", "meta_class_eval_tasks", "meta_map_train_tasks", "meta_map_eval_tasks"), function(x) {
+      x = gsub("\\\"|[][]| |\'", "", x)
+      return(str_split(x, ","))
+    } )
+}
+```
+
+```{r}
+load_d = function(results_dir, result_subdirs, num_runs, file_type) {
+  d = replicate(num_runs * length(result_subdirs), data.frame())
+  index = 1
+  for (run_i in 0:(num_runs-1)) {
+    for (result_subdir in result_subdirs) {
+      filename = sprintf("%s/%s/run%i_%s.csv", results_dir, result_subdir, run_i, file_type)
+      print(filename)
+      if (!file.exists(filename)) {
+        print(paste("skipping ", filename, sep=""))
+        next
+      }
+      if (grepl("config", file_type)) {
+        this_d = read_config(filename)
+      } else {
+        this_d = read.csv(filename, check.names=F, header=T) 
+        names(this_d) <- make.unique(names(this_d)) 
+
+      }
+      this_d = this_d %>%
+        mutate(run = run_i,
+               run_type = result_subdir)
+      d[[index]] = this_d
+      index = index + 1
+    }
+    
+  }
+  d = bind_rows(d)
+  return(d)
+}
+```
+
+```{r}
+config_d = load_d(parent_dir, subdirs, num_runs, "run_config")
+loss_d = load_d(parent_dir, subdirs, num_runs, "losses")
+lang_loss_d = load_d(parent_dir, lang_subdirs, num_runs, "language_losses")
+meta_true_d = load_d(parent_dir, subdirs, num_runs, "meta_true_losses")
+lang_meta_true_d = load_d(parent_dir, lang_homm_subdirs, num_runs, "language_meta_true_losses")
+```
+
+# some manipulation
+
+```{r}
+loss_d = loss_d %>%
+  filter(epoch %% 100 == 0) %>%
+  gather(task_and_train_or_eval, loss, -epoch, -run, -run_type) %>%
+  separate(task_and_train_or_eval, c("task", "train_or_eval"), sep=":") %>%
+  mutate(meta = grepl("is_|switch_|^NOT$", task),
+         accuracy = grepl("accuracy", task),
+         meta_task_type = case_when(!meta ~ "NA",
+                                    task == "NOT" ~ "NOT",
+                                    grepl("switch_color", task) ~ "switch_color",
+                                    grepl("switch_shape", task) ~ "switch_shape",
+                                    grepl("switch_size", task) ~ "switch_size"),
+         composite = ifelse(grepl("AND|OR|XOR", task), "composite", "basic"),
+         color_relevant = grepl("color", task),
+         shape_relevant = grepl("shape", task),
+         size_relevant = grepl("size", task),
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+  
+```
+
+```{r}
+lang_loss_d = lang_loss_d %>%
+  filter(epoch %% 100 == 0) %>%
+  gather(task_and_train_or_eval, loss, -epoch, -run, -run_type) %>%
+  separate(task_and_train_or_eval, c("task", "train_or_eval"), sep=":") %>%
+  mutate(accuracy = grepl("accuracy", task),
+         composite = ifelse(grepl("AND|OR|XOR", task), "composite", "basic"),
+         composite_type = str_extract(task, "AND|OR|XOR"),
+         color_relevant = grepl("color", task),
+         shape_relevant = grepl("shape", task),
+         size_relevant = grepl("size", task),
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+```
+
+
+```{r}
+meta_true_d = meta_true_d %>%
+  filter(epoch %% 100 == 0) %>%
+  gather(task, loss, -epoch, -run, -run_type) %>%
+  separate(task, c("meta_task", "mapping_toe", "base_task_toe", "source", "target"), ":|->") %>%
+  mutate(meta_task_type = case_when(meta_task == "NOT" ~ "NOT",
+                                    grepl("switch_color", meta_task) ~ "switch_color",
+                                    grepl("switch_shape", meta_task) ~ "switch_shape",
+                                    grepl("switch_size", meta_task) ~ "switch_size"),
+         base_task_type = case_when(grepl("AND|OR|XOR", source) ~ "composite",
+                                    T ~ "basic"),
+         base_composite_type = str_extract(source, "AND|OR|XOR"),
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+  
+```
+
+```{r}
+lang_meta_true_d = lang_meta_true_d %>%
+  filter(epoch %% 100 == 0) %>%
+  gather(task, loss, -epoch, -run, -run_type) %>%
+  separate(task, c("meta_task", "mapping_toe", "base_task_toe", "source", "target"), ":|->") %>%
+  mutate(meta_task_type = case_when(meta_task == "NOT" ~ "NOT",
+                                    grepl("switch_color", meta_task) ~ "switch_color",
+                                    grepl("switch_shape", meta_task) ~ "switch_shape",
+                                    grepl("switch_size", meta_task) ~ "switch_size"),
+         base_task_type = case_when(grepl("AND|OR|XOR", source) ~ "composite",
+                                    T ~ "basic"),
+         base_composite_type = str_extract(source, "AND|OR|XOR"),
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+  
+```
+
+# comparison
+
+Some tasks may not appear as result of meta-mapping
+```{r}
+target_tasks_by_run =  meta_true_d %>%
+  filter(epoch == 0,
+         !grepl("language", run_type),
+         base_task_toe == "example_is_eval",
+         base_composite_type %in% c("AND", "XOR"), 
+         !is.na(loss)) %>%
+  mutate(num_train_examples = as.numeric(str_extract(run_type, "\\d+"))) %>%
+  select(num_train_examples, run, mapping_toe, source, target) %>%
+  select(-source) %>%
+  rename(task=target) %>%
+  distinct()
+```
+
+These results are robust to choice of test epoch (as long as it is large enough for learning to have asymptoted).
+
+```{r}
+test_epoch = 5000
+comparison_d = bind_rows(lang_loss_d %>%
+                           filter(accuracy,
+                                  train_or_eval == "eval",
+                                  composite == "composite",
+                                  composite_type %in% c("AND", "XOR"),
+                                  !is.na(loss)) %>%
+                           mutate(task = gsub("_accuracy", "", task)) %>%
+                           select(epoch, run_type, num_train_examples, run, task, loss) %>%
+                           inner_join(target_tasks_by_run) %>%
+                           group_by(run_type, num_train_examples, mapping_toe, run, epoch) %>%
+                           summarise(mean_accuracy = mean(loss, na.rm=T)) %>%
+#                           group_by(run_type, run) %>%
+#                           filter(mean_accuracy == max(mean_accuracy)) %>%
+                           filter(epoch == test_epoch) %>%
+                           ungroup(),
+                         meta_true_d %>%
+                           filter(base_task_toe == "example_is_eval",
+                                  base_composite_type %in% c("AND", "XOR")) %>%
+                           group_by(run_type, num_train_examples, mapping_toe, run, epoch, target) %>%   # multiple mappings may produce same target                          
+                           summarise(accuracy = mean(loss, na.rm=T)) %>%
+                           group_by(run_type, num_train_examples, mapping_toe, run, epoch) %>%                           
+                           summarise(mean_accuracy = mean(accuracy, na.rm=T)) %>%
+#                           group_by(run_type, run) %>%
+#                           filter(mean_accuracy == max(mean_accuracy)) %>%
+                           filter(epoch == test_epoch) %>%
+                           ungroup(),
+                         lang_meta_true_d %>%
+                           filter(base_task_toe == "example_is_eval",
+                                  base_composite_type %in% c("AND", "XOR")) %>%
+                           group_by(run_type, num_train_examples, mapping_toe, run, epoch, target) %>%   # multiple mappings may produce same target                          
+                           summarise(accuracy = mean(loss, na.rm=T)) %>%
+                           group_by(run_type, mapping_toe, run, epoch) %>%                           
+                           summarise(mean_accuracy = mean(accuracy, na.rm=T)) %>%
+                           # group_by(run_type, run) %>%
+                           # filter(mean_accuracy == max(mean_accuracy)) %>%
+                           filter(epoch == test_epoch) %>%
+                           ungroup()) %>%
+  mutate(num_train_examples = as.numeric(str_extract(run_type, "\\d+")),
+         run_type = case_when(grepl("language_HoMM", run_type) ~ "Lang_HoMM",
+                              grepl("language", run_type) ~ "Lang",
+                              T ~ "HoMM from examples"),
+         run_type = factor(run_type,
+                           levels=c("HoMM from examples", "Lang", "Lang_HoMM"),
+                           labels=c("HoMM from examples", "Language", "HoMM from language")),
+         )
+```
+
+## some quick tests
+
+```{r}
+# contrasts(comparison_d$run_type) = cbind(HoMM=c(1, 0, 0), LangHoMM=c(0, 0, 1))
+# lm(mean_accuracy~ run_type,
+#    comparison_d) %>%
+#   summary()
+```
+
+
+## and a plot
+
+```{r}
+ggplot(data=comparison_d %>%
+         filter(mapping_toe == "metamapping_is_train"),
+       aes(x=num_train_examples, 
+           color=run_type,
+           y=mean_accuracy)) +
+  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
+  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  geom_errorbar(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1,
+                position=position_dodge(width=10)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=4,
+             position=position_dodge(width=10)) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            size=1,
+            position=position_dodge(width=10)) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8", "#984ea3")) +
+  labs(x="Number of training concepts", y="Accuracy on evaluation tasks") +
+  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
+  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
+  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
+  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
+  scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%"))
+
+#ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_sweeping.png", width=6, height=4)
+```
