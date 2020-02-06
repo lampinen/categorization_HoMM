@@ -94,7 +94,8 @@ loss_d = loss_d %>%
          color_relevant = grepl("color", task),
          shape_relevant = grepl("shape", task),
          size_relevant = grepl("size", task),
-         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")),
+         train_or_eval=gsub("\\.\\d+", "", train_or_eval))
   
 ```
 
@@ -109,7 +110,8 @@ lang_loss_d = lang_loss_d %>%
          color_relevant = grepl("color", task),
          shape_relevant = grepl("shape", task),
          size_relevant = grepl("size", task),
-         num_train_examples = as.numeric(str_extract(run_type, "\\d+")))
+         num_train_examples = as.numeric(str_extract(run_type, "\\d+")),
+         train_or_eval=gsub("\\.\\d+", "", train_or_eval))
 ```
 
 
@@ -226,6 +228,11 @@ comparison_d = bind_rows(lang_loss_d %>%
 ## and a plot
 
 ```{r}
+theme_set(theme_classic())
+```
+
+
+```{r}
 ggplot(data=comparison_d %>%
          filter(mapping_toe == "metamapping_is_train"),
        aes(x=num_train_examples, 
@@ -257,4 +264,80 @@ ggplot(data=comparison_d %>%
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%"))
 
 #ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_sweeping.png", width=6, height=4)
+```
+
+MM paper version will not show examples comparions:
+
+```{r}
+ggplot(data=comparison_d %>%
+         filter(mapping_toe == "metamapping_is_train",
+                run_type != "HoMM from examples") %>%
+         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language")),  
+       aes(x=num_train_examples, 
+           color=run_type,
+           y=mean_accuracy)) +
+  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
+  #geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  geom_errorbar(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1,
+                position=position_dodge(width=20)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=3,
+             position=position_dodge(width=20)) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            size=1,
+            position=position_dodge(width=20)) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8")) +
+  labs(x="Number of training concepts", y="Adapted concept accuracy") +
+  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
+  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
+  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
+  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
+  scale_y_continuous(breaks = c(0.8, 0.9, 1), labels = c("80%", "90%", "100%"), limits = c(0.8, NA)) +
+  guides(color=guide_legend(title=NULL)) +
+  theme(legend.position=c(0.8, 0.2))#, legend.box.background=element_rect(), legend.box.margin=margin(1, 6, 6, 6))
+
+ggsave("../../metamapping_paper/figures/concepts_adaptation_sweeping.png", width=4, height=3)
+```
+
+
+```{r}
+ggplot(data=comparison_d %>%
+         filter(mapping_toe == "metamapping_is_eval",
+                num_train_examples > 200),
+       aes(x=num_train_examples, 
+           color=run_type,
+           y=mean_accuracy)) +
+  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
+#  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  geom_errorbar(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1,
+                position=position_dodge(width=10)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=4,
+             position=position_dodge(width=10)) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            size=1,
+            position=position_dodge(width=10)) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8", "#984ea3")) +
+  labs(x="Number of training concepts", y="Accuracy on evaluation tasks") +
+  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
+  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
+  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
+  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
+  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
+  scale_y_continuous(breaks = c(0.9, 1), labels = c("90%", "100%"), limits=c(0.9, NA))
+
+#ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_sweeping_eval.png", width=6, height=4)
 ```
