@@ -260,7 +260,6 @@ class category_HoMM_model(HoMM_model.HoMM_model):
 
         np.random.shuffle(this_train_colors)
         np.random.shuffle(this_train_shapes)
-        print(this_train_colors, [this_eval_color_pair[1]])
         candidates_oth_c = ["switch_color_{}~{}".format(
             x, y) for x in this_train_colors + [this_eval_color_pair[1]] for y in this_train_colors + [this_eval_color_pair[0]] if x != y]
         candidates_oth_s = ["switch_shape_{}~{}".format(
@@ -342,12 +341,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                     np.random.shuffle(permissible_shapes)
                     composites_in = [category_tasks.composite_rule(
                         rule,
-                        category_tasks.basic_rule("color", [in_val]),
-                        category_tasks.basic_rule("shape", [c])) for c in permissible_shapes[:4]]
+                        category_tasks.basic_rule("shape", [c]),
+                        category_tasks.basic_rule("color", [in_val])) for c in permissible_shapes[:4]]
                     composites_out = [category_tasks.composite_rule(
                         rule,
-                        category_tasks.basic_rule("color", [out_val]),
-                        category_tasks.basic_rule("shape", [c])) for c in permissible_shapes[:4]]
+                        category_tasks.basic_rule("shape", [c]),
+                        category_tasks.basic_rule("color", [out_val])) for c in permissible_shapes[:4]]
 
                     train_tasks += composites_in + composites_out[:-2]
                     eval_tasks += composites_out[-2:]
