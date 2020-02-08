@@ -3,7 +3,7 @@ import re
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
-from itertools import combinations
+from itertools import combinations, cycle
 
 from HoMM import HoMM_model
 from HoMM.configs import default_run_config, default_architecture_config
@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_size_sweep/results_ntrain_150/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_size_sweep/results_nmappingsper_2/",
 
     "run_offset": 0,
     "num_runs": 5,
@@ -21,21 +21,11 @@ run_config.update({
 
     "meta_class_train_tasks": ["is_basic_rule_shape", "is_basic_rule_color", "is_basic_rule_size", "is_relevant_shape", "is_relevant_color", "is_relevant_size", "is_OR", "is_AND", "is_XOR"],
     "meta_class_eval_tasks": [],
-    "meta_map_train_tasks": [#"NOT",
-                       # color switching (all except holdouts, but note some may get dropped) 
-                       "switch_color_blue~pink", "switch_color_blue~purple", "switch_color_blue~yellow", "switch_color_blue~ocean", "switch_color_blue~green", "switch_color_blue~cyan", "switch_color_blue~red", "switch_color_pink~blue", "switch_color_pink~purple", "switch_color_pink~yellow", "switch_color_pink~ocean", "switch_color_pink~green", "switch_color_pink~cyan", "switch_color_pink~red", "switch_color_purple~blue", "switch_color_purple~pink", "switch_color_purple~ocean", "switch_color_purple~green", "switch_color_purple~cyan", "switch_color_purple~red", "switch_color_yellow~blue", "switch_color_yellow~pink", "switch_color_yellow~ocean", "switch_color_yellow~green", "switch_color_yellow~cyan", "switch_color_yellow~red", "switch_color_ocean~blue", "switch_color_ocean~pink", "switch_color_ocean~purple", "switch_color_ocean~yellow", "switch_color_ocean~green", "switch_color_ocean~cyan", "switch_color_ocean~red", "switch_color_green~blue", "switch_color_green~pink", "switch_color_green~purple", "switch_color_green~yellow", "switch_color_green~ocean", "switch_color_green~cyan", "switch_color_green~red", "switch_color_cyan~blue", "switch_color_cyan~pink", "switch_color_cyan~purple", "switch_color_cyan~yellow", "switch_color_cyan~ocean", "switch_color_cyan~green", "switch_color_cyan~red", "switch_color_red~blue", "switch_color_red~pink", "switch_color_red~purple", "switch_color_red~yellow", "switch_color_red~ocean", "switch_color_red~green", "switch_color_red~cyan",
-                       # shape_switching (all except holdouts, but note some may get dropped)
-                       "switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus", "switch_shape_triangle~emptytriangle", "switch_shape_square~emptytriangle", "switch_shape_plus~emptytriangle", "switch_shape_circle~emptytriangle", "switch_shape_tee~emptytriangle", "switch_shape_inverseplus~emptytriangle", "switch_shape_emptysquare~emptytriangle", "switch_shape_emptytriangle~triangle", "switch_shape_emptytriangle~square", "switch_shape_emptytriangle~plus", "switch_shape_emptytriangle~circle", "switch_shape_emptytriangle~tee", "switch_shape_emptytriangle~inverseplus", "switch_shape_emptytriangle~emptysquare"
-                       # size switching (all)
-                       #"switch_size_16~24", "switch_size_24~16", "switch_size_24~32", "switch_size_32~24", "switch_size_16~32", "switch_size_32~16",
-                       ],
-    "meta_map_eval_tasks": ["switch_color_yellow~purple", #"switch_color_purple~yellow",
-                            "switch_shape_plus~circle", #"switch_shape_circle~plus",
-                           ],
+    "meta_map_train_tasks": [],  # will be selected below
+    "meta_map_eval_tasks": [],  # will be selected below
+    "num_train_mappings_per": 2,
 
-    "include_size_tasks": True,
-    "include_pair_tasks": False,
-    "train_ext_composite_tasks": 103,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
+    #"train_ext_composite_tasks": 253,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
     "meta_min_train_threshold": 10,  # minimum number of train items for a mapping, those with fewer will be removed 
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
@@ -58,6 +48,9 @@ run_config.update({
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
 })
+
+color_metamappings = ["switch_color_blue~pink", "switch_color_blue~purple", "switch_color_blue~yellow", "switch_color_blue~ocean", "switch_color_blue~green", "switch_color_blue~cyan", "switch_color_blue~red", "switch_color_pink~blue", "switch_color_pink~purple", "switch_color_pink~yellow", "switch_color_pink~ocean", "switch_color_pink~green", "switch_color_pink~cyan", "switch_color_pink~red", "switch_color_purple~blue", "switch_color_purple~pink", "switch_color_purple~ocean", "switch_color_purple~green", "switch_color_purple~cyan", "switch_color_purple~red", "switch_color_yellow~blue", "switch_color_yellow~pink", "switch_color_yellow~ocean", "switch_color_yellow~green", "switch_color_yellow~cyan", "switch_color_yellow~red", "switch_color_ocean~blue", "switch_color_ocean~pink", "switch_color_ocean~purple", "switch_color_ocean~yellow", "switch_color_ocean~green", "switch_color_ocean~cyan", "switch_color_ocean~red", "switch_color_green~blue", "switch_color_green~pink", "switch_color_green~purple", "switch_color_green~yellow", "switch_color_green~ocean", "switch_color_green~cyan", "switch_color_green~red", "switch_color_cyan~blue", "switch_color_cyan~pink", "switch_color_cyan~purple", "switch_color_cyan~yellow", "switch_color_cyan~ocean", "switch_color_cyan~green", "switch_color_cyan~red", "switch_color_red~blue", "switch_color_red~pink", "switch_color_red~purple", "switch_color_red~yellow", "switch_color_red~ocean", "switch_color_red~green", "switch_color_red~cyan"]
+shape_metamappings = ["switch_shape_triangle~square", "switch_shape_triangle~plus", "switch_shape_triangle~circle", "switch_shape_square~triangle", "switch_shape_square~plus", "switch_shape_square~circle", "switch_shape_plus~triangle", "switch_shape_plus~square", "switch_shape_circle~triangle", "switch_shape_circle~square", "switch_shape_triangle~tee", "switch_shape_triangle~inverseplus", "switch_shape_triangle~emptysquare", "switch_shape_square~tee", "switch_shape_square~inverseplus", "switch_shape_square~emptysquare", "switch_shape_plus~tee", "switch_shape_plus~inverseplus", "switch_shape_plus~emptysquare", "switch_shape_circle~tee", "switch_shape_circle~inverseplus", "switch_shape_circle~emptysquare", "switch_shape_tee~inverseplus", "switch_shape_tee~emptysquare", "switch_shape_inverseplus~tee", "switch_shape_inverseplus~emptysquare", "switch_shape_emptysquare~tee", "switch_shape_emptysquare~inverseplus", "switch_shape_triangle~emptytriangle", "switch_shape_square~emptytriangle", "switch_shape_plus~emptytriangle", "switch_shape_circle~emptytriangle", "switch_shape_tee~emptytriangle", "switch_shape_inverseplus~emptytriangle", "switch_shape_emptysquare~emptytriangle", "switch_shape_emptytriangle~triangle", "switch_shape_emptytriangle~square", "switch_shape_emptytriangle~plus", "switch_shape_emptytriangle~circle", "switch_shape_emptytriangle~tee", "switch_shape_emptytriangle~inverseplus", "switch_shape_emptytriangle~emptysquare"]
 
 
 architecture_config = default_architecture_config.default_architecture_config
@@ -92,7 +85,6 @@ architecture_config.update({
                       [256, 4, 2, False],
                       [512, 2, 2, True]],
 })
-
 if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
@@ -109,7 +101,7 @@ if False:  # enable for language baseline
         "mlp_output": False,
     })
 
-if False:  # enable for homoiconic language-based training and meta-mapping 
+if True:  # enable for homoiconic language-based training and meta-mapping 
     run_config.update({
         "train_language_base": True,
         "train_language_meta": True,
@@ -130,6 +122,24 @@ if False:  # enable for persistent
         "combined_emb_guess_weight": "varied",
         "emb_match_loss_weight": 0.05,
     })
+
+
+# this function is stolen from itertools recipes
+def roundrobin(*iterables):
+    "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+    # Recipe credited to George Sakkis
+    num_active = len(iterables)
+    nexts = cycle(iter(it).__next__ for it in iterables)
+    while num_active:
+        try:
+            for next in nexts:
+                yield next()
+        except StopIteration:
+            # Remove the iterator we just exhausted from the cycle.
+            num_active -= 1
+            nexts = cycle(islice(nexts, num_active))
+
+
 
 class memory_buffer(object):
     """Essentially a wrapper around numpy arrays that handles inserting and
@@ -211,252 +221,161 @@ class category_HoMM_model(HoMM_model.HoMM_model):
         # have one task in which each attribute value is "seen"
         basic_shape_tasks = [category_tasks.basic_rule("shape", [x]) for x in category_tasks.BASE_SHAPES]
         basic_color_tasks = [category_tasks.basic_rule("color", [x]) for x in category_tasks.BASE_COLORS.keys()]
-        run_config["base_train_tasks"] += basic_shape_tasks + basic_color_tasks
-        if run_config["include_size_tasks"]:
-            basic_size_tasks = [category_tasks.basic_rule("size", [x]) for x in category_tasks.BASE_SIZES]
-            run_config["base_train_tasks"] += basic_size_tasks 
+        basic_size_tasks = [category_tasks.basic_rule("size", [x]) for x in category_tasks.BASE_SIZES]
+        run_config["base_train_tasks"] += basic_shape_tasks + basic_color_tasks + basic_size_tasks
 
-        # and sampling of subsets trained and held out, but sampled to leave some interesting eval tasks 
-        if run_config["include_pair_tasks"]:
-            color_pair_tasks = [category_tasks.basic_rule("color", [x, y]) for x, y in combinations(category_tasks.BASE_COLORS.keys(), 2)]  
-            train_color_pair_tasks = [x for x in color_pair_tasks if x.accepted_list not in [set(["red", "green"]), set(["blue", "yellow"]), set(["pink", "cyan"]), set(["purple", "ocean"])]]
-            run_config["base_train_tasks"] += train_color_pair_tasks 
-
-            train_shape_pair_tasks = [category_tasks.basic_rule("shape", ["triangle", "square"]), category_tasks.basic_rule("shape", ["triangle", "plus"]), category_tasks.basic_rule("shape", ["square", "plus"]), category_tasks.basic_rule("shape", ["square", "circle"]), category_tasks.basic_rule("shape", ["plus", "circle"]), category_tasks.basic_rule("shape", ["square", "emptysquare"]), category_tasks.basic_rule("shape", ["plus", "tee"]), category_tasks.basic_rule("shape", ["plus", "inverseplus"]), category_tasks.basic_rule("shape", ["circle", "emptysquare"]), category_tasks.basic_rule("shape", ["triangle", "inverseplus"])]
-            run_config["base_train_tasks"] += train_shape_pair_tasks 
-
-            if run_config["include_size_tasks"]:
-                run_config["base_train_tasks"] += [category_tasks.basic_rule("size", ["16", "24"]), category_tasks.basic_rule("size", ["16", "32"])]
-
-            # and eval tasks
-            run_config["base_eval_tasks"] += [x for x in color_pair_tasks if x not in train_color_pair_tasks]
-            run_config["base_eval_tasks"] += [category_tasks.basic_rule("shape", ["triangle", "circle"])] 
-            if run_config["include_size_tasks"]:
-                run_config["base_eval_tasks"] += [category_tasks.basic_rule("size", ["24", "32"])] 
-
-        # now feature-conjunctive tasks, part random, with targeted holdouts 
-        colors = category_tasks.BASE_COLORS.keys()
+        colors = list(category_tasks.BASE_COLORS.keys())
         shapes = category_tasks.BASE_SHAPES
         sizes = category_tasks.BASE_SIZES
         rules = ["AND", "OR", "XOR"]
-        sc_composite_tasks = [category_tasks.composite_rule(
-            r,
-            category_tasks.basic_rule("shape", [s]),
-            category_tasks.basic_rule("color", [c])) for s in shapes for c in colors for r in rules]
 
-        if run_config["include_size_tasks"]:
-            ssz_composite_tasks = [category_tasks.composite_rule(
-                r,
-                category_tasks.basic_rule("shape", [s]),
-                category_tasks.basic_rule("size", [sz])) for s in shapes for sz in sizes for r in rules]
+        # permute colors and shapes randomly for this run
+        permuted_colors = colors[:]
+        np.random.shuffle(permuted_colors)
+        permuted_shapes = shapes[:]
+        np.random.shuffle(permuted_shapes)
+        permuted_sizes = sizes[:]
+        np.random.shuffle(permuted_sizes)
 
-            csz_composite_tasks = [category_tasks.composite_rule(
-                r,
-                category_tasks.basic_rule("color", [c]),
-                category_tasks.basic_rule("size", [sz])) for sz in sizes for c in colors for r in rules]
+        # choose some to be eval meta-mapping
 
-            composite_tasks = sc_composite_tasks + ssz_composite_tasks + csz_composite_tasks
-        else:
-            composite_tasks = sc_composite_tasks
+        this_eval_color_pair = permuted_colors[:2]
+        this_train_colors = permuted_colors[2:]
+        this_eval_shape_pair = permuted_shapes[:2]
+        this_train_shapes = permuted_shapes[2:]
 
-        # some training examples for the held out mappings
-        train_composite_tasks = [
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["triangle"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["triangle"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["square"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["square"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["emptytriangle"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["emptytriangle"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["green"])),
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["green"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["pink"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["pink"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["cyan"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["cyan"])),
-            ]
+        self.meta_map_train_tasks = [] 
+        candidates_ev_c_source = ["switch_color_{}~{}".format(
+            this_eval_color_pair[0],
+            c) for c in np.random.permutation(this_train_colors)]
+        candidates_ev_c_target =  ["switch_color_{}~{}".format(
+            c,
+            this_eval_color_pair[1]) for c in np.random.permutation(this_train_colors)]
+        candidates_ev_s_source =  ["switch_shape_{}~{}".format(
+            this_eval_shape_pair[0],
+            s) for s in np.random.permutation(this_train_shapes)]
+        candidates_ev_s_target = ["switch_shape_{}~{}".format(
+            s,
+            this_eval_shape_pair[1]) for s in np.random.permutation(this_train_shapes)]
 
-        # and some eval
-        train_composite_tasks += [
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["yellow"])),
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["plus"]),
-                category_tasks.basic_rule("color", ["purple"]))
-            ]
+        np.random.shuffle(this_train_colors)
+        np.random.shuffle(this_train_shapes)
+        print(this_train_colors, [this_eval_color_pair[1]])
+        candidates_oth_c = ["switch_color_{}~{}".format(
+            x, y) for x in this_train_colors + [this_eval_color_pair[1]] for y in this_train_colors + [this_eval_color_pair[0]] if x != y]
+        candidates_oth_s = ["switch_shape_{}~{}".format(
+            x, y) for x in this_train_shapes + [this_eval_shape_pair[1]] for y in this_train_shapes + [this_eval_shape_pair[0]] if x != y]
 
-        if run_config["include_size_tasks"]:
-            train_composite_tasks += [
-                category_tasks.composite_rule(
-                    "AND",
-                    category_tasks.basic_rule("shape", ["circle"]),
-                    category_tasks.basic_rule("size", ["16"])),
-                category_tasks.composite_rule(
-                    "OR",
-                    category_tasks.basic_rule("shape", ["square"]),
-                    category_tasks.basic_rule("size", ["16"])),
-                category_tasks.composite_rule(
-                    "XOR",
-                    category_tasks.basic_rule("shape", ["triangle"]),
-                    category_tasks.basic_rule("size", ["16"])),
-                category_tasks.composite_rule(
-                    "AND",
-                    category_tasks.basic_rule("shape", ["circle"]),
-                    category_tasks.basic_rule("size", ["24"])),
-                category_tasks.composite_rule(
-                    "OR",
-                    category_tasks.basic_rule("shape", ["square"]),
-                    category_tasks.basic_rule("size", ["24"])),
-                category_tasks.composite_rule(
-                    "XOR",
-                    category_tasks.basic_rule("shape", ["triangle"]),
-                    category_tasks.basic_rule("size", ["24"])),
-                category_tasks.composite_rule(
-                    "AND",
-                    category_tasks.basic_rule("color", ["red"]),
-                    category_tasks.basic_rule("size", ["32"])),
-                category_tasks.composite_rule(
-                    "OR",
-                    category_tasks.basic_rule("color", ["green"]),
-                    category_tasks.basic_rule("size", ["32"])),
-                category_tasks.composite_rule(
-                    "OR",
-                    category_tasks.basic_rule("color", ["yellow"]),
-                    category_tasks.basic_rule("size", ["24"])),
-                category_tasks.composite_rule(
-                    "XOR",
-                    category_tasks.basic_rule("color", ["ocean"]),
-                    category_tasks.basic_rule("size", ["16"])),
-                ]
-    
-        eval_composite_tasks = [
-            category_tasks.composite_rule(
-                "AND",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "OR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["purple"])),
-            category_tasks.composite_rule(
-                "XOR",
-                category_tasks.basic_rule("shape", ["circle"]),
-                category_tasks.basic_rule("color", ["purple"]))
-            ]
-        if run_config["include_size_tasks"]:
-            eval_composite_tasks += [
-                category_tasks.composite_rule(
-                    "AND",
-                    category_tasks.basic_rule("shape", ["circle"]),
-                    category_tasks.basic_rule("size", ["32"])),
-                category_tasks.composite_rule(
-                    "OR",
-                    category_tasks.basic_rule("shape", ["square"]),
-                    category_tasks.basic_rule("size", ["32"])),
-                category_tasks.composite_rule(
-                    "XOR",
-                    category_tasks.basic_rule("shape", ["triangle"]),
-                    category_tasks.basic_rule("size", ["32"])),
-                ]
+        for i, mapping in enumerate(roundrobin(
+            candidates_ev_c_source, candidates_ev_s_source,
+            candidates_ev_c_target, candidates_ev_s_target,
+            candidates_oth_c, candidates_oth_s)):  
+            if i // 2 >= self.run_config["num_train_mappings_per"]: 
+                break
+            self.meta_map_train_tasks.append(mapping)
 
-        composite_tasks = [x for x in composite_tasks if x not in eval_composite_tasks and x not in train_composite_tasks]
-        np.random.shuffle(composite_tasks)
 
-        train_composite_tasks += composite_tasks[:run_config["train_ext_composite_tasks"]]
-        eval_composite_tasks += composite_tasks[run_config["train_ext_composite_tasks"]:]
+        self.meta_map_eval_tasks = ["switch_color_{}~{}".format(this_eval_color_pair[0],
+                                                                this_eval_color_pair[1]),
+                                    "switch_shape_{}~{}".format(this_eval_shape_pair[0],
+                                                                this_eval_shape_pair[1])]   
+
+        def get_base_tasks_for_mapping(attribute, in_val, out_val, eval_mapping=False):
+
+            if eval_mapping:
+                permissible_shapes = this_train_shapes[:]
+                permissible_colors = this_train_colors[:]
+            else:  # not eval_mapping
+                permissible_shapes = this_train_shapes + [np.random.choice(this_eval_shape_pair)] 
+                permissible_colors = this_train_colors + [np.random.choice(this_eval_color_pair)] 
+            permissible_sizes = np.random.permutation(sizes)
+            
+            train_tasks = []
+            eval_tasks = []
+            # add size combined tasks
+            if attribute == "shape":
+                for rule in rules: 
+                    np.random.shuffle(permissible_sizes)
+                    composites_in = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("shape", [in_val]),
+                        category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
+                    composites_out = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("shape", [out_val]),
+                        category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
+
+                    train_tasks += composites_in + composites_out[:-1]
+                    eval_tasks += composites_out[-1:]
+            else:  # attribute == "color"
+                for rule in rules: 
+                    np.random.shuffle(permissible_sizes)
+                    composites_in = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("color", [in_val]),
+                        category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
+                    composites_out = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("color", [out_val]),
+                        category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
+
+                    train_tasks += composites_in + composites_out[:-1]
+                    eval_tasks += composites_out[-1:]
+            
+            # add shape + color tasks
+            if attribute == "shape":
+                for rule in rules: 
+                    np.random.shuffle(permissible_colors)
+                    composites_in = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("shape", [in_val]),
+                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:4]]
+                    composites_out = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("shape", [out_val]),
+                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:4]]
+
+                    train_tasks += composites_in + composites_out[:-2]
+                    eval_tasks += composites_out[-2:]
+            else:  # attribute == "color"
+                for rule in rules: 
+                    np.random.shuffle(permissible_shapes)
+                    composites_in = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("color", [in_val]),
+                        category_tasks.basic_rule("shape", [c])) for c in permissible_shapes[:4]]
+                    composites_out = [category_tasks.composite_rule(
+                        rule,
+                        category_tasks.basic_rule("color", [out_val]),
+                        category_tasks.basic_rule("shape", [c])) for c in permissible_shapes[:4]]
+
+                    train_tasks += composites_in + composites_out[:-2]
+                    eval_tasks += composites_out[-2:]
+
+            return train_tasks, eval_tasks
+        
+        train_composite_tasks = []
+        eval_composite_tasks = []
+        for mapping, mapping_is_eval in zip(self.meta_map_eval_tasks + self.meta_map_train_tasks, 
+                                            [True] * len(self.meta_map_eval_tasks) + [False] * len(self.meta_map_train_tasks)):
+            _, attribute, map_pair = mapping.split("_")
+            in_val, out_val = map_pair.split("~")
+            this_train_tasks, this_eval_tasks = get_base_tasks_for_mapping(
+                attribute, in_val, out_val, mapping_is_eval)
+
+            train_composite_tasks += [t for t in this_train_tasks if t not in train_composite_tasks and t not in eval_composite_tasks]
+            eval_composite_tasks += [t for t in this_eval_tasks if t not in train_composite_tasks and t not in eval_composite_tasks]
 
         run_config["base_train_tasks"] += train_composite_tasks 
         run_config["base_eval_tasks"] += eval_composite_tasks
-        print(len(run_config["base_train_tasks"]))
-
-        # and some negations
-#        train_negations = []
-#        eval_negations = []
-#        for x in basic_shape_tasks + basic_color_tasks + basic_size_tasks:
-#            if x.accepted_list in [set(["purple"]), set(["circle"]), set([32])]:
-#                eval_negations.append(category_tasks.negated(x))
-#            else:
-#                train_negations.append(category_tasks.negated(x))
-#
-#        negated_train_color_pair_tasks = [category_tasks.negated(x) for x in train_color_pair_tasks]
-#        np.random.shuffle(negated_train_color_pair_tasks)
-#        train_negations += negated_train_color_pair_tasks[:-5]
-#        eval_negations += negated_train_color_pair_tasks[-5:]
-#
-#        negated_train_shape_pair_tasks = [category_tasks.negated(x) for x in train_shape_pair_tasks]
-#        np.random.shuffle(negated_train_shape_pair_tasks)
-#        train_negations += negated_train_shape_pair_tasks[:-2]
-#        eval_negations += negated_train_shape_pair_tasks[-2:]
-#
-#        negated_train_composite_tasks = [category_tasks.negated(x) for x in train_composite_tasks]
-#        np.random.shuffle(negated_train_composite_tasks)
-#        train_negations += negated_train_composite_tasks[:-5]
-#        eval_negations += negated_train_composite_tasks[-5:]
-#
-#        run_config["base_train_tasks"] += train_negations
-#        run_config["base_eval_tasks"] += eval_negations
+        run_config["num_base_train_tasks"] = len(run_config["base_train_tasks"])
+        run_config["num_base_eval_tasks"] = len(run_config["base_eval_tasks"])
 
         self.base_train_tasks = run_config["base_train_tasks"]
         self.base_eval_tasks = run_config["base_eval_tasks"]
 
         self.meta_class_train_tasks = run_config["meta_class_train_tasks"]
         self.meta_class_eval_tasks = run_config["meta_class_eval_tasks"]
-        self.meta_map_train_tasks = run_config["meta_map_train_tasks"]
-        self.meta_map_eval_tasks = run_config["meta_map_eval_tasks"]
 
         # set up the meta pairings 
         self.meta_pairings = category_tasks.get_meta_pairings(
@@ -467,7 +386,8 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             meta_map_train_tasks=self.meta_map_train_tasks,
             meta_map_eval_tasks=self.meta_map_eval_tasks) 
 
-        # drop metamappings with too few training items
+        # drop meta class tasks with too few training items
+        # (metamaps are almost guaranteed to have enough in the new scheme)
         to_remove = []
         for k,v in list(self.meta_pairings.items()):
             if len(v["train"]) < run_config["meta_min_train_threshold"]:
