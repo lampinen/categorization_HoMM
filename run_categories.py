@@ -11,7 +11,7 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_size_sweep/results_nmappingsper_2/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_smaller_size_sweep/results_nmappingsper_2/",
 
     "run_offset": 0,
     "num_runs": 5,
@@ -27,8 +27,10 @@ run_config.update({
 
     #"train_ext_composite_tasks": 253,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
     "meta_min_train_threshold": 10,  # minimum number of train items for a mapping, those with fewer will be removed 
+    "meta_examples_per_type": 1,  # when adding examples per meta-mapping, how many of each type to include, both train and eval
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
+
 
     "refresh_mem_buffs_every": 20,
     "eval_every": 20,
@@ -44,7 +46,7 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 1e-8,
 
-    "num_epochs": 5000,
+    "num_epochs": 20000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
 })
@@ -279,6 +281,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                                     "switch_shape_{}~{}".format(this_eval_shape_pair[0],
                                                                 this_eval_shape_pair[1])]   
 
+        mept = run_config["meta_examples_per_type"]
         def get_base_tasks_for_mapping(attribute, in_val, out_val, eval_mapping=False):
 
             if eval_mapping:
@@ -304,8 +307,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                         category_tasks.basic_rule("shape", [out_val]),
                         category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
 
-                    train_tasks += composites_in + composites_out[:-1]
-                    eval_tasks += composites_out[-1:]
+                    if mept == 1:
+                        train_tasks += composites_in[:2] + [composites_out[1]]
+                        eval_tasks += [composites_out[1]]
+                    else:
+                        train_tasks += composites_in + composites_out[:-1]
+                        eval_tasks += composites_out[-1:]
             else:  # attribute == "color"
                 for rule in rules: 
                     np.random.shuffle(permissible_sizes)
@@ -318,8 +325,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                         category_tasks.basic_rule("color", [out_val]),
                         category_tasks.basic_rule("size", [sz])) for sz in permissible_sizes]
 
-                    train_tasks += composites_in + composites_out[:-1]
-                    eval_tasks += composites_out[-1:]
+                    if mept == 1:
+                        train_tasks += composites_in[:2] + [composites_out[1]]
+                        eval_tasks += [composites_out[1]]
+                    else:
+                        train_tasks += composites_in + composites_out[:-1]
+                        eval_tasks += composites_out[-1:]
             
             # add shape + color tasks
             if attribute == "shape":
@@ -328,28 +339,28 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                     composites_in = [category_tasks.composite_rule(
                         rule,
                         category_tasks.basic_rule("shape", [in_val]),
-                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:4]]
+                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:2 * mept]]
                     composites_out = [category_tasks.composite_rule(
                         rule,
                         category_tasks.basic_rule("shape", [out_val]),
-                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:4]]
+                        category_tasks.basic_rule("color", [c])) for c in permissible_colors[:2 * mept]]
 
-                    train_tasks += composites_in + composites_out[:-2]
-                    eval_tasks += composites_out[-2:]
+                    train_tasks += composites_in + composites_out[:mept]
+                    eval_tasks += composites_out[mept:]
             else:  # attribute == "color"
                 for rule in rules: 
                     np.random.shuffle(permissible_shapes)
                     composites_in = [category_tasks.composite_rule(
                         rule,
                         category_tasks.basic_rule("shape", [c]),
-                        category_tasks.basic_rule("color", [in_val])) for c in permissible_shapes[:4]]
+                        category_tasks.basic_rule("color", [in_val])) for c in permissible_shapes[:2 * mept]]
                     composites_out = [category_tasks.composite_rule(
                         rule,
                         category_tasks.basic_rule("shape", [c]),
-                        category_tasks.basic_rule("color", [out_val])) for c in permissible_shapes[:4]]
+                        category_tasks.basic_rule("color", [out_val])) for c in permissible_shapes[:2 * mept]]
 
-                    train_tasks += composites_in + composites_out[:-2]
-                    eval_tasks += composites_out[-2:]
+                    train_tasks += composites_in + composites_out[:mept]
+                    eval_tasks += composites_out[mept:]
 
             return train_tasks, eval_tasks
         
