@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_smaller_size_sweep/results_nmappingsper_2/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_smaller_size_sweep/results_nmappingsper_16/",
 
     "run_offset": 0,
-    "num_runs": 5,
+    "num_runs": 6,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -23,10 +23,10 @@ run_config.update({
     "meta_class_eval_tasks": [],
     "meta_map_train_tasks": [],  # will be selected below
     "meta_map_eval_tasks": [],  # will be selected below
-    "num_train_mappings_per": 2,
+    "num_train_mappings_per": 16,
 
     #"train_ext_composite_tasks": 253,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
-    "meta_min_train_threshold": 10,  # minimum number of train items for a mapping, those with fewer will be removed 
+    "meta_min_train_threshold": 6,  # minimum number of train items for a mapping, those with fewer will be removed 
     "meta_examples_per_type": 1,  # when adding examples per meta-mapping, how many of each type to include, both train and eval
 
     "multiplicity": 2,  # how many different renders of each object to put in memory
@@ -46,7 +46,7 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 1e-8,
 
-    "num_epochs": 20000,
+    "num_epochs": 5000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
 })
@@ -87,7 +87,7 @@ architecture_config.update({
                       [256, 4, 2, False],
                       [512, 2, 2, True]],
 })
-if False:  # enable for language baseline
+if True:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
@@ -103,7 +103,7 @@ if False:  # enable for language baseline
         "mlp_output": False,
     })
 
-if True:  # enable for homoiconic language-based training and meta-mapping 
+if False:  # enable for homoiconic language-based training and meta-mapping 
     run_config.update({
         "train_language_base": True,
         "train_language_meta": True,
