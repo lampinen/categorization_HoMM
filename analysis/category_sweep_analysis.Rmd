@@ -327,23 +327,18 @@ ggplot(data=comparison_d %>%
                 width=0.25,
                 size=1,
                 position=position_dodge(0.8)) +
-  geom_point(stat="summary",
-             fun.y="mean",
-             size=3,
-             position=position_dodge(0.8)) +
   geom_line(stat="summary",
             fun.y="mean",
             size=1,
             position=position_dodge(0.8)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=3,
+             position=position_dodge(0.8)) +
   scale_color_manual(values=c("#e41a1c", "#477ec8")) +
-  labs(x="Number of training meta-mappings", y="Adapted concept accuracy") +
-  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
-  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
-  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
-  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
-  scale_x_continuous(breaks = c(2, 4, 8, 12, 16)) +
+  labs(x="Number of training meta-mappings\n(Approximate number of training concepts)", y="Adapted concept accuracy") +
+  scale_x_continuous(breaks = c(2, 4, 8, 12, 16),
+                     labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) + #, limits = c(0.8, NA)) +
   guides(color=guide_legend(title=NULL)) +
   theme(legend.position=c(0.8, 0.33))#, legend.box.background=element_rect(), legend.box.margin=margin(1, 6, 6, 6))
@@ -366,14 +361,14 @@ ggplot(data=comparison_d %>%
                 width=0.25,
                 size=1,
                 position=position_dodge(width=10)) +
-  geom_point(stat="summary",
-             fun.y="mean",
-             size=4,
-             position=position_dodge(width=10)) +
   geom_line(stat="summary",
             fun.y="mean",
             size=1,
             position=position_dodge(width=10)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=4,
+             position=position_dodge(width=10)) +
   scale_color_manual(values=c("#e41a1c", "#477ec8", "#984ea3")) +
   labs(x="Number of training concepts", y="Accuracy on evaluation tasks (held-out meta-mapping)") +
   # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
@@ -407,25 +402,19 @@ ggplot(data=comparison_d %>%
                 width=0.25,
                 size=1,
                 position=position_dodge(0.4)) +
-  geom_point(stat="summary",
-             fun.y="mean",
-             size=3,
-             position=position_dodge(0.4)) +
   geom_line(stat="summary",
             fun.y="mean",
             size=1,
             linetype=2,
             position=position_dodge(0.4)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=3,
+             position=position_dodge(0.4)) +
   scale_color_manual(values=c("#e41a1c", "#477ec8")) +
-  labs(x="Number of training meta-mappings", y="Adapted concept accuracy") +
-  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
-  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
-  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
-  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
-  #scale_y_continuous(breaks = c(0.9, 0.95, 1), labels = c("90%", "95%", "100%")) +
-  scale_x_continuous(breaks = c(2, 4, 8, 12, 16)) +
+  labs(x="Number of training meta-mappings\n(Approximate number of training concepts)", y="Adapted concept accuracy") +
+  scale_x_continuous(breaks = c(2, 4, 8, 12, 16),
+                     labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) + #, limits = c(0.8, NA)) +
   guides(color=F)
 
