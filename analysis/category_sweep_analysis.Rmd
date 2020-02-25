@@ -152,17 +152,7 @@ lang_meta_true_d = lang_meta_true_d %>%
 ```
 
 ```{r}
-ggplot(lang_meta_true_d %>%
-         filter(
-                base_task_type == "composite",
-                base_composite_type %in% c("AND", "XOR"),
-                mapping_toe == "metamapping_is_train"),
-       aes(x=epoch,
-           y=loss,
-           color=base_task_toe)) +
-  geom_line(stat="summary",
-            fun.y="mean") +
-  facet_grid(num_train_examples ~ run)
+theme_set(theme_classic())
 ```
 
 ```{r}
@@ -170,13 +160,44 @@ ggplot(lang_meta_true_d %>%
          filter(
                 base_task_type == "composite",
                 base_composite_type %in% c("AND", "XOR"),
-                mapping_toe == "metamapping_is_eval"),
+                mapping_toe == "metamapping_is_train"),
        aes(x=epoch,
            y=loss,
-           color=base_task_toe)) +
+           color=factor(base_task_toe, levels=c("example_is_train", "example_is_eval"), labels=c("Trained\ntarget", "Held-out\ntarget")))) +
   geom_line(stat="summary",
-            fun.y="mean") +
-  facet_grid(num_train_examples ~ run)
+            fun.y="mean",
+            size=1) +
+  facet_grid(I(2*num_train_examples) ~ run) +
+  scale_x_continuous(limits=c(0, 10000), breaks=c(0, 5000, 10000), labels=c("0", "5", "10")) +
+  scale_color_manual(values=c("#1b9e77", "#e7298a")) +
+  labs(x="Epoch (thousands)", y="Average evaluation accuracy")+
+  guides(color=guide_legend(title=NULL))
+
+ggsave("../../metamapping_paper/figures/concepts_all_runs_train.png", width=8, height=5)
+```
+
+```{r}
+ggplot(lang_meta_true_d %>%
+         filter(
+                base_task_type == "composite",
+                base_composite_type %in% c("AND", "XOR"),
+                mapping_toe == "metamapping_is_eval",
+                base_task_toe == "example_is_eval"
+                ),
+       aes(x=epoch,
+           y=loss,
+           color=factor(base_task_toe, levels=c("example_is_train", "example_is_eval"), labels=c("Trained\ntarget", "Held-out\ntarget")))) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            color="#e7298a",
+            size=1) +
+  facet_grid(I(2*num_train_examples) ~ run) +
+  scale_x_continuous(limits=c(0, 10000), breaks=c(0, 5000, 10000), labels=c("0", "5", "10")) +
+  scale_color_manual(values=c("#1b9e77", "#e7298a"), drop=F) +
+  labs(x="Epoch (thousands)", y="Average evaluation accuracy")+
+  guides(color=guide_legend(title=NULL))
+
+ggsave("../../metamapping_paper/figures/concepts_all_runs_eval.png", width=8, height=5)
 ```
 
 # comparison
@@ -272,10 +293,6 @@ comparison_d = bind_rows(lang_loss_d %>%
 
 
 ## and a plot
-
-```{r}
-theme_set(theme_classic())
-```
 
 
 ```{r}
@@ -453,7 +470,7 @@ ggplot(data=comparison_d %>%
   labs(x="Evaluation accuracy", y="Density of runs") +
   scale_x_continuous(breaks=c(0.75, 1.), labels=c("75%", "100%")) +
   guides(color=guide_legend(title=NULL)) +
-  theme(legend.position=c(0.4, 0.15), legend.direction="horizontal") +#, legend.box.background=element_rect(), legend.box.margin=margin(1, 6, 6, 6))
+  theme(legend.position=c(0.4, 0.12), legend.direction="horizontal") +#, legend.box.background=element_rect(), legend.box.margin=margin(1, 6, 6, 6))
   facet_grid(I(2*num_train_examples) ~ ., scales = "free")
 ggsave("../../metamapping_paper/figures/concepts_adaptation_generalization_density.png", width=4, height=3)
 ```
