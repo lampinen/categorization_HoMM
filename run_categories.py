@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_smaller_size_sweep/results_nmappingsper_16/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_optimizing/results_nmappingsper_4/",
 
     "run_offset": 0,
-    "num_runs": 6,
+    "num_runs": 5,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -23,7 +23,7 @@ run_config.update({
     "meta_class_eval_tasks": [],
     "meta_map_train_tasks": [],  # will be selected below
     "meta_map_eval_tasks": [],  # will be selected below
-    "num_train_mappings_per": 16,
+    "num_train_mappings_per": 4,
 
     #"train_ext_composite_tasks": 253,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
     "meta_min_train_threshold": 6,  # minimum number of train items for a mapping, those with fewer will be removed 
@@ -46,9 +46,11 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 1e-8,
 
-    "num_epochs": 5000,
+    "num_epochs": 7500,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
-    "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix."
+    "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix.",
+
+    "num_optimization_epochs": 1000,
 })
 
 color_metamappings = ["switch_color_blue~pink", "switch_color_blue~purple", "switch_color_blue~yellow", "switch_color_blue~ocean", "switch_color_blue~green", "switch_color_blue~cyan", "switch_color_blue~red", "switch_color_pink~blue", "switch_color_pink~purple", "switch_color_pink~yellow", "switch_color_pink~ocean", "switch_color_pink~green", "switch_color_pink~cyan", "switch_color_pink~red", "switch_color_purple~blue", "switch_color_purple~pink", "switch_color_purple~ocean", "switch_color_purple~green", "switch_color_purple~cyan", "switch_color_purple~red", "switch_color_yellow~blue", "switch_color_yellow~pink", "switch_color_yellow~ocean", "switch_color_yellow~green", "switch_color_yellow~cyan", "switch_color_yellow~red", "switch_color_ocean~blue", "switch_color_ocean~pink", "switch_color_ocean~purple", "switch_color_ocean~yellow", "switch_color_ocean~green", "switch_color_ocean~cyan", "switch_color_ocean~red", "switch_color_green~blue", "switch_color_green~pink", "switch_color_green~purple", "switch_color_green~yellow", "switch_color_green~ocean", "switch_color_green~cyan", "switch_color_green~red", "switch_color_cyan~blue", "switch_color_cyan~pink", "switch_color_cyan~purple", "switch_color_cyan~yellow", "switch_color_cyan~ocean", "switch_color_cyan~green", "switch_color_cyan~red", "switch_color_red~blue", "switch_color_red~pink", "switch_color_red~purple", "switch_color_red~yellow", "switch_color_red~ocean", "switch_color_red~green", "switch_color_red~cyan"]
@@ -87,7 +89,7 @@ architecture_config.update({
                       [256, 4, 2, False],
                       [512, 2, 2, True]],
 })
-if True:  # enable for language baseline
+if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
@@ -103,7 +105,7 @@ if True:  # enable for language baseline
         "mlp_output": False,
     })
 
-if False:  # enable for homoiconic language-based training and meta-mapping 
+if True:  # enable for homoiconic language-based training and meta-mapping 
     run_config.update({
         "train_language_base": True,
         "train_language_meta": True,
@@ -628,5 +630,9 @@ for run_i in range(run_config["run_offset"], run_config["run_offset"] + run_conf
 
     model = category_HoMM_model(run_config=run_config)
     model.run_training()
+    model.save_parameters(model.run_config["output_dir"] + "run%i_final_checkpoint" % model.run_config["this_run"])
+    model.guess_embeddings_and_optimize(
+        num_optimization_epochs=run_config["num_optimization_epochs"],
+        eval_every=10, random_init_scale=0.1)
 
     tf.reset_default_graph()
