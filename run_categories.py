@@ -635,6 +635,6 @@ for run_i in range(run_config["run_offset"], run_config["run_offset"] + run_conf
     model.save_parameters(model.run_config["output_dir"] + "run%i_final_checkpoint" % model.run_config["this_run"])
     model.guess_embeddings_and_optimize(
         num_optimization_epochs=run_config["num_optimization_epochs"],
-        eval_every=10, random_init_scale=0.1)
+        eval_every=2, random_init_scale=0.01)
 
     tf.reset_default_graph()
