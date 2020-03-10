@@ -278,10 +278,12 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             self.meta_map_train_tasks.append(mapping)
 
 
-        self.meta_map_eval_tasks = ["switch_color_{}~{}".format(this_eval_color_pair[0],
-                                                                this_eval_color_pair[1]),
-                                    "switch_shape_{}~{}".format(this_eval_shape_pair[0],
-                                                                this_eval_shape_pair[1])]   
+#        self.meta_map_eval_tasks = ["switch_color_{}~{}".format(this_eval_color_pair[0],
+#                                                                this_eval_color_pair[1]),
+#                                    "switch_shape_{}~{}".format(this_eval_shape_pair[0],
+#                                                                this_eval_shape_pair[1])]   
+
+        self.meta_map_eval_tasks = []  # stick to trained mappings for this 
 
         mept = run_config["meta_examples_per_type"]
         def get_base_tasks_for_mapping(attribute, in_val, out_val, eval_mapping=False):
