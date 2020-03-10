@@ -527,7 +527,7 @@ ggsave("../../metamapping_paper/figures/concepts_adaptation_proportion_perfect_e
 ```
 
 ```{r}
-glmer(gets_it ~ run_type * I(num_train_examples - 16) + (1|run:num_train_examples),
+glmer(gets_it ~ run_type * I(num_train_examples - 18) + (1|run:num_train_examples),
       data=comparison_d %>%
          filter(mapping_toe == "metamapping_is_train",
                 run_type != "HoMM from examples") %>%

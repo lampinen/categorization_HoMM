@@ -409,9 +409,9 @@ set.seed(0)
 comparison_d %>% 
   group_by(run_type) %>%
   do(results=mean_cl_boot(.$mean_accuracy)) %>%
-  summarize(y=results$y,
-            ymin=results$ymin,
-            ymax=results$ymax)
+  mutate(y=results$y,
+         ymin=results$ymin,
+         ymax=results$ymax)
 ```
 
 ## and a plot
@@ -510,7 +510,7 @@ ggplot(data=comparison_d %>%
            color=run_type,
            y=mean_accuracy)) +
   geom_hline(yintercept=1, linetype=2, alpha=0.5) +
-  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+  #geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
   geom_errorbar(stat="summary",
                 fun.data="mean_cl_boot",
                 width=0.25,
@@ -519,15 +519,15 @@ ggplot(data=comparison_d %>%
              fun.y="mean",
              size=3) +
   scale_color_manual(values=c("#e41a1c", "#477ec8")) +
-  labs(x="Model type", y="Accuracy on evaluation tasks") +
-  annotate("text", x=0.62, y=0.53, alpha=0.5, label="Chance") +
-  annotate("text", x=0.62, y=1.03, alpha=0.5, label="Optimal") +
-  annotate("path",x=c(1,1,2,2),y=c(1.05,1.07,1.07,1.05),alpha=0.5) +
-  annotate("text", x=1.5, y=1.1, alpha=0.5, label="p < 0.05") +
-  scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) +
+  labs(x="Model type", y="Adapted concept eval. accuracy\n(trained MMs)") +
+  #annotate("text", x=0.62, y=0.53, alpha=0.5, label="Chance") +
+  annotate("text", x=0.62, y=1.007, alpha=0.5, label="Optimal") +
+  annotate("path",x=c(1,1,2,2),y=c(1.005,1.01,1.01,1.005),alpha=0.5) +
+  annotate("text", x=1.5, y=1.017, alpha=0.5, label="p < 0.05") +
+  scale_y_continuous(breaks = c(0.9, 0.95, 1), labels = c("90%", "95%", "100%")) +
   guides(color=F)
 
-ggsave("../../metamapping_paper/figures/concepts_adaptation.png", width=4, height=3)
+ggsave("../../metamapping_paper/figures/concepts_adaptation_random_tasks.png", width=4, height=3)
 ```
 
 ## validating the language model architecture
