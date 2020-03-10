@@ -7,6 +7,7 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(lme4)
+library(lmerTest)
 ```
 
 # data loading
@@ -17,7 +18,9 @@ subdirs = c(
             
             "results_nmappingsper_2",
             "results_nmappingsper_4",
+            "results_nmappingsper_6",
             "results_nmappingsper_8",
+            "results_nmappingsper_10",
             "results_nmappingsper_12",
             "results_nmappingsper_16"
             
@@ -25,7 +28,7 @@ subdirs = c(
 
 lang_subdirs = paste(subdirs, "language", sep="/")
 lang_homm_subdirs = paste(subdirs, "language_HoMM", sep="/")
-num_runs = 10
+num_runs = 13
 ```
 
 ```{r}
@@ -158,9 +161,13 @@ theme_set(theme_classic())
 ```{r}
 ggplot(lang_meta_true_d %>%
          filter(
-                base_task_type == "composite",
-                base_composite_type %in% c("AND", "XOR"),
-                mapping_toe == "metamapping_is_train"),
+           base_task_type == "composite",
+           base_composite_type %in% c("AND", "XOR"),
+           mapping_toe == "metamapping_is_train") %>%
+         # at 16 examples per, run 3 is missing eval mapping XOR or AND tasks, and 4, 5 are missing both train and eval mapping tasks (because of sampling)
+         # therefore we ran 3 additional runs with random seeds 10, 11, and 12, and replace appropriately
+         filter(num_train_examples < 16 | !run %in% c(4, 5, 10)) %>%
+         mutate(run = ifelse(run > 9, run - 7, run)),
        aes(x=epoch,
            y=loss,
            color=factor(base_task_toe, levels=c("example_is_train", "example_is_eval"), labels=c("Trained\ntarget", "Held-out\ntarget")))) +
@@ -183,7 +190,11 @@ ggplot(lang_meta_true_d %>%
                 base_composite_type %in% c("AND", "XOR"),
                 mapping_toe == "metamapping_is_eval",
                 base_task_toe == "example_is_eval"
-                ),
+         ) %>%
+         # at 16 examples per, run 3 is missing eval mapping XOR or AND tasks, and 4, 5 are missing both train and eval mapping tasks (because of sampling)
+         # therefore we ran 3 additional runs with random seeds 10, 11, and 12, and replace appropriately
+         filter(num_train_examples < 16 | !run %in% c(3, 4, 5)) %>%
+         mutate(run = ifelse(run > 9, run - 7, run)),
        aes(x=epoch,
            y=loss,
            color=factor(base_task_toe, levels=c("example_is_train", "example_is_eval"), labels=c("Trained\ntarget", "Held-out\ntarget")))) +
@@ -230,7 +241,7 @@ These results are robust to choice of test epoch (as long as it is large enough 
 test_epoch = function(num_train_examples) {
   test_epoch = case_when(
     num_train_examples == 2 ~ 10000,
-    num_train_examples == 4 ~ 7500,
+    num_train_examples %in% c(4, 6) ~ 7500,
     # num_train_examples == 8 ~ 5000,
     # num_train_examples == 12 ~ 5000,
     T ~ 5000
@@ -278,79 +289,24 @@ comparison_d = bind_rows(lang_loss_d %>%
          run_type = factor(run_type,
                            levels=c("HoMM from examples", "Lang", "Lang_HoMM"),
                            labels=c("HoMM from examples", "Language", "HoMM from language")),
-         )
+         ) %>%
+  # at 16 examples per, run 3 is missing eval mapping XOR or AND tasks, and 4, 5 are missing both train and eval mapping tasks (because of sampling)
+  # therefore we ran 3 additional runs with random seeds 10, 11, and 12, and replace appropriately
+  filter(num_train_examples < 16 | run != 3 | mapping_toe == "metamapping_is_train",
+         num_train_examples < 16 | run != 10 | mapping_toe == "metamapping_is_eval",
+         num_train_examples < 16 | !run %in% c(4, 5)) %>%
+  mutate(run = ifelse(run > 9, run - 7, run))
 ```
 
-## some quick tests
 
-```{r}
-lmer(mean_accuracy ~ run_type + scale(num_train_examples) + (1|run),
-      data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train",
-                run_type != "HoMM from examples") %>%
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization"))) %>%
-  summary()
-```
+## main plots
 
-```{r}
-lmer(mean_accuracy ~ run_type + (1|run),
-      data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train",
-                num_train_examples == 8,
-                run_type != "HoMM from examples") %>%
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization"))) %>%
-  summary()
-```
-
-```{r}
-lmer(mean_accuracy ~ run_type + (1|run),
-      data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train",
-                num_train_examples == 12,
-                run_type != "HoMM from examples") %>%
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization"))) %>%
-  summary()
-```
-
-## and a plot
-
-
-```{r}
-# ggplot(data=comparison_d %>%
-#          filter(mapping_toe == "metamapping_is_train"),
-#        aes(x=num_train_examples, 
-#            color=run_type,
-#            y=mean_accuracy)) +
-#   geom_hline(yintercept=1, linetype=2, alpha=0.5) +
-#   geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
-#   geom_errorbar(stat="summary",
-#                 fun.data="mean_cl_boot",
-#                 width=0.25,
-#                 size=1) +
-#   geom_point(stat="summary",
-#              fun.y="mean",
-#              size=4) +
-#   geom_line(stat="summary",
-#             fun.y="mean",
-#             size=1) +
-#   scale_color_manual(values=c("#e41a1c", "#477ec8", "#984ea3")) +
-#   labs(x="Number of training meta-mappings", y="Accuracy on evaluation tasks") +
-#   # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
-#   # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
-#   # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-#   # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
-#   # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-#   # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
-#   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%"))
-
-#ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_sweeping.png", width=6, height=4)
-```
 
 MM paper version will not show examples comparions:
 
 ```{r}
 ggplot(data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train" | run_type == "HoMM from language",
+         filter(mapping_toe == "metamapping_is_train",
                 run_type != "HoMM from examples") %>%
          mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language"),
                 mapping_toe = factor(mapping_toe, levels = c("metamapping_is_train", "metamapping_is_eval"),
@@ -363,12 +319,12 @@ ggplot(data=comparison_d %>%
                                    labels=c("HoMM\n(trained MM)", "HoMM\n(Held-out MM)", "Language\ngeneralization"))),  
        aes(x=num_train_examples, 
            y=mean_accuracy, 
-           linetype=organizer,
-           color=organizer)) +
-  annotate("text", x=3, y=0.47, alpha=0.5, label="Chance") +
+#           linetype=organizer,
+           color=run_type)) +
+#  annotate("text", x=3, y=0.47, alpha=0.5, label="Chance") +
   annotate("text", x=4.5, y=1.03, alpha=0.5, label="Optimal adaptation") +
   geom_hline(yintercept=1, linetype=2, alpha=0.5) +
-  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
+#  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
   geom_linerange(stat="summary",
                 fun.data="mean_cl_boot",
                 width=0.25,
@@ -384,11 +340,12 @@ ggplot(data=comparison_d %>%
              size=2.5,
              position=position_dodge(0.8),
              show.legend=F) +
-  scale_color_manual(values=c("#e41a1c", "#e41a1c", "#477ec8")) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8")) +
   scale_linetype_manual(values=c(1, 2, 1)) +
-  labs(x="Number of training meta-mappings\n(Approximate number of training concepts)", y="Adapted concept eval. accuracy") +
-  scale_x_continuous(breaks = c(2, 4, 8, 12, 16),
-                     labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
+  labs(x="Number of training meta-mappings", y="Adapted concept eval. accuracy\n(trained meta-mappings)") +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
+                     labels = c("4", "8", "12", "16", "20", "24", "32")) +
+                     #labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) + #, limits = c(0.8, NA)) +
   guides(color=guide_legend(title=NULL,
                             override.aes = list(shape=NA)),
@@ -404,80 +361,61 @@ ggsave("../../metamapping_paper/figures/concepts_adaptation_sweeping.png", width
 ```{r}
 ggplot(data=comparison_d %>%
          filter(mapping_toe == "metamapping_is_eval",
-                num_train_examples >= 200),
+                run_type == "HoMM from language") %>%
+         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language"),
+                mapping_toe = factor(mapping_toe, levels = c("metamapping_is_train", "metamapping_is_eval"),
+                                     labels = c("TrainedMM",
+                                                "EvalMM")),
+                                     # labels = c("Trained meta-mapping",
+                                     #            "Held-out meta-mapping")),
+                organizer = factor(interaction(mapping_toe, run_type),
+                                   levels=c("TrainedMM.HoMM", "EvalMM.HoMM", "TrainedMM.Language"),
+                                   labels=c("HoMM\n(trained MM)", "HoMM\n(Held-out MM)", "Language\ngeneralization"))),  
        aes(x=num_train_examples, 
-           color=run_type,
-           y=mean_accuracy)) +
-  geom_hline(yintercept=1, linetype=2, alpha=0.5) +
-#  geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
-  geom_errorbar(stat="summary",
-                fun.data="mean_cl_boot",
-                width=0.25,
-                size=1,
-                position=position_dodge(width=10)) +
-  geom_line(stat="summary",
-            fun.y="mean",
-            size=1,
-            position=position_dodge(width=10)) +
-  geom_point(stat="summary",
-             fun.y="mean",
-             size=4,
-             position=position_dodge(width=10)) +
-  scale_color_manual(values=c("#e41a1c", "#477ec8", "#984ea3")) +
-  labs(x="Number of training concepts", y="Accuracy on evaluation tasks (held-out meta-mapping)") +
-  # annotate("text", x=0.6, y=0.52, alpha=0.5, label="Chance") +
-  # annotate("text", x=0.85, y=1.02, alpha=0.5, label="Optimal adaptation") +
-  # annotate("path",x=c(1,1,1.95,1.95),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=1.5, y=1.1, alpha=0.5, label="n.s. (both perm- and t-test)") +
-  # annotate("path",x=c(2.05, 2.05, 3, 3),y=c(1.05,1.08,1.08,1.05),alpha=0.5) +
-  # annotate("text", x=2.5, y=1.1, alpha=0.5, label="p < 0.05 (both tests)") +
-  scale_y_continuous(breaks = c(0.9, 1), labels = c("90%", "100%"), limits=c(0.9, NA))
-
-#ggsave("../../../psych/dissertation/4-extending/figures/concepts_adaptation_sweeping_eval.png", width=6, height=4)
-```
-
-MM paper version:
-
-```{r}
-ggplot(data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_eval",
-                run_type == "HoMM from language") %>%  # for fewer, we often don't have enough support for eval tasks, they're missing from most runs
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization")),  
-       aes(x=num_train_examples, 
-           color=run_type, 
-           y=mean_accuracy)) +
-  annotate("text", x=15.5, y=0.53, alpha=0.5, label="Chance") +
+           y=mean_accuracy, 
+#           linetype=organizer,
+           color=run_type)) +
+  annotate("text", x=3, y=0.47, alpha=0.5, label="Chance") +
   annotate("text", x=4.5, y=1.03, alpha=0.5, label="Optimal adaptation") +
   geom_hline(yintercept=1, linetype=2, alpha=0.5) +
   geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
-  #geom_hline(yintercept=0.5, linetype=3, alpha=0.5) +
   geom_linerange(stat="summary",
                 fun.data="mean_cl_boot",
                 width=0.25,
                 size=1,
-                position=position_dodge(0.4)) +
+                position=position_dodge(0.8),
+                show.legend=F) +
   geom_line(stat="summary",
             fun.y="mean",
             size=1,
             linetype=2,
-            position=position_dodge(0.4)) +
+            position=position_dodge(0.8)) +
   geom_point(stat="summary",
              fun.y="mean",
-             size=3,
-             position=position_dodge(0.4)) +
-  scale_color_manual(values=c("#e41a1c", "#477ec8")) +
-  labs(x="Number of training meta-mappings\n(Approximate number of training concepts)", y="Adapted concept accuracy") +
-  scale_x_continuous(breaks = c(2, 4, 8, 12, 16),
-                     labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
+             size=2.5,
+             position=position_dodge(0.8),
+             show.legend=F) +
+  scale_color_manual(values=c("#e41a1c")) +
+  scale_linetype_manual(values=c(1, 2, 1)) +
+  labs(x="Number of training meta-mappings", y="Adapted concept eval. accuracy\n(held-out meta-mappings)") +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
+                     labels = c("4", "8", "12", "16", "20", "24", "32")) +
+                     #labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0.5, 0.75, 1), labels = c("50%", "75%", "100%")) + #, limits = c(0.8, NA)) +
   guides(color=F)
+  # guides(color=guide_legend(title=NULL,
+  #                           override.aes = list(shape=NA)),
+  #        linetype=guide_legend(title=NULL)) +
+  # theme(legend.position=c(0.8, 0.31), legend.background=element_blank(), legend.box.background=element_blank(),
+  #       legend.key.width = unit(1,"cm"))
+
 
 ggsave("../../metamapping_paper/figures/concepts_adaptation_sweeping_eval.png", width=4, height=3)
 ```
 
 ## another visualization
 
-
+a
 ```{r}
 ggplot(data=comparison_d %>%
          filter(mapping_toe == "metamapping_is_train",
@@ -503,7 +441,7 @@ comparison_d = comparison_d %>%
 
 ```{r}
 ggplot(data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train" | run_type == "HoMM from language",
+         filter(mapping_toe == "metamapping_is_train",
                 run_type != "HoMM from examples") %>%
          mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language"),
                 mapping_toe = factor(mapping_toe, levels = c("metamapping_is_train", "metamapping_is_eval"),
@@ -515,12 +453,13 @@ ggplot(data=comparison_d %>%
                                    levels=c("TrainedMM.HoMM", "EvalMM.HoMM", "TrainedMM.Language"),
                                    labels=c("HoMM\n(trained MM)", "HoMM\n(Held-out MM)", "Language\ngeneralization"))),  
        aes(x=num_train_examples, 
-           linetype=organizer,
-           color=organizer,
+#           linetype=organizer,
+           color=run_type,
            y=1. * gets_it)) +
   geom_linerange(stat="summary",
                 fun.data="mean_cl_boot",
                 width=0.25,
+                show.legend=F,
                 size=1,
                 position=position_dodge(0.8)) +
   geom_line(stat="summary",
@@ -531,20 +470,64 @@ ggplot(data=comparison_d %>%
              fun.y="mean",
              size=3,
              position=position_dodge(0.8)) +
-  labs(x="Number of training meta-mappings\n(Approximate number of training concepts)", y="Proportion of runs with\n>99% evaluation accuracy") +
+  labs(x="Number of training meta-mappings", y="Proportion of runs with >99%\nevaluation accuracy (trained MMs)") +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
+                     labels = c("4", "8", "12", "16", "20", "24", "32")) +
+                     #labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0., 0.5, 1), labels = c("0/10", "5/10", "10/10")) + #, limits = c(0.8, NA)) +
-  scale_color_manual(values=c("#e41a1c", "#e41a1c", "#477ec8")) +
-  scale_linetype_manual(values=c(1, 2, 1)) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8")) +
+  guides(color=guide_legend(title=NULL,
+                            override.aes = list(shape=NA)),
+         linetype=guide_legend(title=NULL)) +
+  theme(legend.position=c(0.8, 0.2), legend.background=element_blank(), legend.box.background=element_blank(),
+        legend.key.width = unit(1,"cm"))
+ggsave("../../metamapping_paper/figures/concepts_adaptation_proportion_perfect.png", width=4, height=3)
+```
+
+```{r}
+ggplot(data=comparison_d %>%
+         filter(mapping_toe == "metamapping_is_eval",
+                run_type == "HoMM from language") %>%
+         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language"),
+                mapping_toe = factor(mapping_toe, levels = c("metamapping_is_train", "metamapping_is_eval"),
+                                     labels = c("TrainedMM",
+                                                "EvalMM")),
+                # labels = c("Trained meta-mapping",
+                #            "Held-out meta-mapping")),
+                organizer = factor(interaction(mapping_toe, run_type),
+                                   levels=c("TrainedMM.HoMM", "EvalMM.HoMM", "TrainedMM.Language"),
+                                   labels=c("HoMM\n(trained MM)", "HoMM\n(Held-out MM)", "Language\ngeneralization"))),  
+       aes(x=num_train_examples, 
+#           linetype=organizer,
+           color=run_type,
+           y=1. * gets_it)) +
+  geom_linerange(stat="summary",
+                fun.data="mean_cl_boot",
+                width=0.25,
+                size=1,
+                position=position_dodge(0.8)) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            linetype=2,
+            size=1,
+            position=position_dodge(0.8)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=3,
+             position=position_dodge(0.8)) +
+  labs(x="Number of training meta-mappings", y="Proportion of runs with >99%\nevaluation accuracy (held-out MMs)") +
+  scale_y_continuous(breaks = c(0., 0.5, 1), labels = c("0/10", "5/10", "10/10"), limits = c(0, 1)) +
+  scale_color_manual(values=c("#e41a1c", "#477ec8")) +
+#  scale_linetype_manual(values=c(1, 2, 1)) +
   scale_x_continuous(breaks = c(2, 4, 8, 12, 16),
                      labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   guides(color=F,
          linetype=F) 
-ggsave("../../metamapping_paper/figures/concepts_adaptation_proportion_perfect.png", width=4, height=3)
+ggsave("../../metamapping_paper/figures/concepts_adaptation_proportion_perfect_eval.png", width=4, height=3)
 ```
 
-
 ```{r}
-glmer(gets_it ~ run_type + scale(num_train_examples) + (1|run),
+glmer(gets_it ~ run_type * I(num_train_examples - 16) + (1|run:num_train_examples),
       data=comparison_d %>%
          filter(mapping_toe == "metamapping_is_train",
                 run_type != "HoMM from examples") %>%
@@ -553,71 +536,50 @@ glmer(gets_it ~ run_type + scale(num_train_examples) + (1|run),
   summary()
 ```
 
+# Analyses on full comparison data
+
+
 ```{r}
-glmer(gets_it ~ run_type + (1|run),
-      data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train",
-                num_train_examples == 8,
-                run_type != "HoMM from examples") %>%
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization")),
-      family="binomial") %>%
+unsummarized_comparison_d = bind_rows(lang_loss_d %>%
+                             filter(accuracy,
+                                    train_or_eval == "eval",
+                                    composite == "composite",
+                                    composite_type %in% c("AND", "XOR"),
+                                    !is.na(loss)) %>%
+                             filter(epoch == test_epoch(num_train_examples)) %>%
+                             mutate(task = gsub("_accuracy", "", task)) %>%
+                             select(epoch, run_type, num_train_examples, run, task, loss) %>%
+                             inner_join(target_tasks_by_run) %>%
+                             rename(accuracy=loss),
+                         lang_meta_true_d %>%
+                           filter(base_task_toe == "example_is_eval",
+                                  base_composite_type %in% c("AND", "XOR")) %>%
+                           filter(epoch == test_epoch(num_train_examples)) %>%
+                           group_by(run_type, num_train_examples, mapping_toe, run, epoch, target) %>%   # multiple mappings may produce same target                          
+                           summarise(accuracy = mean(loss, na.rm=T)) %>%
+                           ungroup()) %>%
+  mutate(num_train_examples = as.numeric(str_extract(run_type, "\\d+")),
+         run_type = case_when(grepl("language_HoMM", run_type) ~ "Lang_HoMM",
+                              grepl("language", run_type) ~ "Lang",
+                              T ~ "HoMM from examples"),
+         run_type = factor(run_type,
+                           levels=c("HoMM from examples", "Lang", "Lang_HoMM"),
+                           labels=c("HoMM from examples", "Language", "HoMM from language")),
+         gets_it = accuracy == 1.
+         ) %>%
+  # at 16 examples per, run 3 is missing eval mapping XOR or AND tasks, and 4, 5 are missing both train and eval mapping tasks (because of sampling)
+  # therefore we ran 3 additional runs with random seeds 10, 11, and 12, and replace appropriately
+  filter(num_train_examples < 16 | run != 3 | mapping_toe == "metamapping_is_train",
+         num_train_examples < 16 | run != 10 | mapping_toe == "metamapping_is_eval",
+         num_train_examples < 16 | !run %in% c(4, 5)) %>%
+  mutate(run = ifelse(run > 9, run - 7, run))
+```
+
+```{r}
+lmer(accuracy ~ run_type * I(num_train_examples - 18)  + (1|run:num_train_examples),
+      data=unsummarized_comparison_d %>%
+         filter(mapping_toe == "metamapping_is_train") %>%
+         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language"))) %>%
   summary()
-```
-
-```{r}
-glmer(gets_it ~ run_type + (1|run),
-      data=comparison_d %>%
-         filter(mapping_toe == "metamapping_is_train",
-                num_train_examples == 12,
-                run_type != "HoMM from examples") %>%
-         mutate(run_type = ifelse(run_type == "HoMM from language", "HoMM", "Language\nGeneralization")),
-      family="binomial") %>%
-  summary()
-```
-
-Bootstrap by run
-```{r message=FALSE, warning=FALSE}
-set.seed(0)  # reproducibility
-num_samples = 1000
-
-boot_results = replicate(1000, data.frame())
-data_by_run = list()
-for (run_i in 1:num_runs) {
-  data_by_run[[run_i]] = comparison_d %>% 
-    filter(run == run_i - 1,
-           mapping_toe == "metamapping_is_train",
-           run_type != "HoMM from examples",
-           num_train_examples == 8)
-}
-
-for (boot_i in 1:num_samples) {
-  this_runs = sample(1:num_runs, num_runs, replace=T) 
-  this_data = replicate(num_runs, data.frame())
-  for (run_i in 1:num_runs) {
-    this_data[[run_i]] = data_by_run[[this_runs[run_i]]] %>% 
-      mutate(run = run_i)
-  }
-  this_data = bind_rows(this_data)
-  
-  these_results = tryCatch({
-    glmer(gets_it ~ run_type + num_train_examples + (1|run),
-          data=this_data,
-          family="binomial") %>%
-      summary()}, error = function(error){ return("Error")})
-  if (these_results != "Error") {
-    boot_results[[boot_i]] = data.frame(
-      parameter=row.names(these_results$coefficients),
-      estimate=these_results$coefficients[, 1],
-      iteration=boot_i)
-  }
-}
-boot_results = bind_rows(boot_results) 
-```
-
-```{r}
-boot_results %>%
-  filter(grepl("language", parameter)) %>%
-  pull(estimate) %>%
-  quantile(., probs=c(0.05, 0.95), na.rm=T)
 ```
 
