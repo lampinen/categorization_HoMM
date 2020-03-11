@@ -119,9 +119,9 @@ ggplot(loss_d %>%
             fun.y="mean",
             na.rm=T,
             alpha=0.4) +
-  geom_hline(yintercept=log(chance), alpha=0.5, linetype=2) +
+  geom_hline(yintercept=0.5, alpha=0.5, linetype=2) +
   scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
-  annotate("text", x=240, y=log(chance) + 1, alpha=0.5, label="Chance") +
+  annotate("text", x=800, y=0.55, alpha=0.5, label="Chance") +
   labs(x="Epoch (training task embeddings on new data)", y="Accuracy on new tasks") +
   guides(color=guide_legend(title="")) 
 
@@ -143,12 +143,10 @@ ggplot(loss_d %>%
             fun.y="mean",
             na.rm=T,
             alpha=0.4) +
-  geom_hline(yintercept=log(chance), alpha=0.5, linetype=2) +
   scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
-  annotate("text", x=240, y=log(chance) + 1, alpha=0.5, label="Chance") +
   labs(x="Epoch (training task embeddings on new data)", y="Loss on new tasks") +
   guides(color=guide_legend(title="")) +
-  scale_y_log10(breaks=c(1e-02, 1e-01, 1, 1e1, 1e2), labels = c(0.01, 0.1, 1, 10, 100))
+  scale_y_log10(breaks=c(1e-5, 1e-4, 1e-03, 1e-02, 1e-01, 1, 1e1, 1e2), labels = c(0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100))
 
 #ggsave("../../psych/dissertation/5-timescales/figures/polynomial_optimization_curves.png", width=6, height=4)
 ```
