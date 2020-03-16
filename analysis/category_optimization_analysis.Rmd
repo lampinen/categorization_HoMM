@@ -1,5 +1,5 @@
 ---
-title: "Polynomial optimzation analysis"
+title: "category optimzation analysis"
 author: "Andrew Lampinen"
 output: html_document
 ---
@@ -8,6 +8,7 @@ output: html_document
 library(tidyverse)
 library(Hmisc)
 library(boot)
+library(lme4)
 ```
 
 # data loading
@@ -15,7 +16,7 @@ library(boot)
 ```{r}
 parent_dir = "../categorization_HoMM_optimizing"
 subdirs = c("results_nmappingsper_4/language_HoMM")
-num_runs = 5
+num_runs = 10
 ```
 
 ```{r}
@@ -107,6 +108,7 @@ ggplot(loss_d %>%
 ```{r}
 ggplot(loss_d %>%
          filter(train_or_eval == "eval",
+                epoch <= 500,
                 loss_or_accuracy == "accuracy") %>%
          mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
        aes(x=epoch, y=loss, color=init_type)) +
@@ -121,11 +123,11 @@ ggplot(loss_d %>%
             alpha=0.4) +
   geom_hline(yintercept=0.5, alpha=0.5, linetype=2) +
   scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
-  annotate("text", x=800, y=0.55, alpha=0.5, label="Chance") +
+  annotate("text", x=400, y=0.52, alpha=0.5, label="Chance") +
   labs(x="Epoch (training task embeddings on new data)", y="Accuracy on new tasks") +
   guides(color=guide_legend(title="")) 
 
-#ggsave("../../psych/dissertation/5-timescales/figures/polynomial_optimization_curves.png", width=6, height=4)
+ggsave("../../../psych/dissertation/5-timescales/figures/category_optimization_curves.png", width=6, height=4)
 ```
 
 ```{r}
@@ -146,9 +148,9 @@ ggplot(loss_d %>%
   scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
   labs(x="Epoch (training task embeddings on new data)", y="Loss on new tasks") +
   guides(color=guide_legend(title="")) +
-  scale_y_log10(breaks=c(1e-5, 1e-4, 1e-03, 1e-02, 1e-01, 1, 1e1, 1e2), labels = c(0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100))
+  scale_y_log10(breaks=c(1e-5, 1e-4, 1e-03, 1e-02, 1e-01, 1, 1e1, 1e2), labels = c("0.00001", "0.0001", 0.001, 0.01, 0.1, 1, 10, 100))
 
-#ggsave("../../psych/dissertation/5-timescales/figures/polynomial_optimization_curves.png", width=6, height=4)
+#ggsave("../../psych/dissertation/5-timescales/figures/category_optimization_curves.png", width=6, height=4)
 ```
 
 ```{r}
@@ -156,7 +158,7 @@ ggplot(loss_d %>%
          filter(train_or_eval == "eval",
                 loss_or_accuracy == "accuracy") %>%
          group_by(init_type, run, task) %>%
-         summarise(regret_int=sum(1.-loss)) %>%
+         summarise(regret_int=2 * sum(1.-loss)) %>%  # 2 is dt
          group_by(init_type, run) %>%
          summarise(mean_lri=mean(regret_int, na.rm=T)) %>%
          ungroup() %>%
@@ -171,7 +173,7 @@ ggplot(loss_d %>%
   labs(x="Initialization", y="Mean cumulative regret on new task") +
   guides(fill=F)
 
-#ggsave("../../psych/dissertation/5-timescales/figures/polynomial_optimization_cumulative_regret.png", width=6, height=4)
+ggsave("../../../psych/dissertation/5-timescales/figures/category_optimization_cumulative_regret.png", width=6, height=4)
 ```
 ```{r}
 intermediate_data = loss_d %>%
@@ -179,7 +181,7 @@ intermediate_data = loss_d %>%
          loss_or_accuracy == "accuracy",
          !is.na(loss)) %>%
   group_by(init_type, run, task) %>%
-  summarise(regret_int=sum(1.- loss)) %>%
+  summarise(regret_int= 2 * sum(1.- loss)) %>%  # 2 is dt
   group_by(init_type, run) %>%
   summarise(mean_lri=mean(regret_int, na.rm=T)) 
 
@@ -197,54 +199,14 @@ CI_data = intermediate_data %>%
 CI_data
 ```
 
-## MM paper plots
-
-TODO: update these
-```{r}
-ggplot(loss_d %>%
-         filter(train_or_eval == "eval") %>%
-         mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
-       aes(x=epoch, y=loss, color=init_type)) +
-  geom_line(stat="summary",
-            fun.y="mean",
-            na.rm=T,
-            size = 2) +
-  geom_line(aes(group=interaction(run, init_type)),
-            stat="summary",
-            fun.y="mean",
-            na.rm=T,
-            alpha=0.2) +
-  geom_hline(yintercept=log(chance), alpha=0.5, linetype=2) +
-  scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
-  annotate("text", x=240, y=log(chance) - 1, alpha=0.5, label="Chance") +
-  labs(x="Epoch (training task embeddings on new data)", y="Loss on new tasks") +
-  guides(color=guide_legend(title="")) +
-  scale_y_log10(breaks=c(1e-02, 1e-01, 1, 1e1, 1e2), labels = c(0.01, 0.1, 1, 10, 100)) +
-  theme(legend.position=c(0.8, 0.875),
-        legend.key.size = unit(0.5, 'lines'))
-
-#ggsave("../metamapping_paper/figures/optimization_curves.png", width=4, height=3)
-```
+# Analyses
 
 ```{r}
-ggplot(loss_d %>%
-         filter(train_or_eval == "eval",
-                !is.na(loss),
-                init_type != "untrained") %>%
-         group_by(init_type, run, task) %>%
-         summarise(regret_int=sum(loss)) %>%
-         group_by(init_type, run) %>%
-         summarise(mean_lri=mean(regret_int, na.rm=T)) %>%
-         ungroup() %>%
-         mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping\noutput", "Centroid\nof tasks", "Arbitrary\ntrain task", "Random\nvector", "Untrained model"))),
-       aes(x=init_type, y=mean_lri, fill=init_type)) +
-  geom_bar(stat="summary",
-           fun.y="mean") +
-  geom_errorbar(stat="summary",
-                fun.data="mean_cl_boot",
-                width=0.5) +
-  scale_fill_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
-  labs(x="Task representation initialization", y="Mean cumulative loss on new task") +
-  guides(fill=F)
-
+lmer(
+  mean_lri ~ init_type + (1 | run),
+  data=intermediate_data %>%
+    filter(init_type %in% c("guess", "random_init"))
+     ) %>%
+  summary()
 ```
+
