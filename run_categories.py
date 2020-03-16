@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_optimizing/results_nmappingsper_4/",
+    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_optimizing/results_nmappingsper_8/",
 
     "run_offset": 0,
-    "num_runs": 5,
+    "num_runs": 10,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -46,7 +46,7 @@ run_config.update({
 #    "min_language_learning_rate": 3e-8,
     "min_meta_learning_rate": 1e-8,
 
-    "num_epochs": 7500,
+    "num_epochs": 5000,
     "include_noncontrasting_negative": False,  # if True, half of negative examples will be random
     "note": "random angle range reduced; no negation; no size meta; more meta color + shape; new shape; Mapping domain fix.",
 
