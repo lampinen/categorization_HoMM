@@ -23,7 +23,7 @@ run_config.update({
     "meta_class_eval_tasks": [],
     "meta_map_train_tasks": [],  # will be selected below
     "meta_map_eval_tasks": [],  # will be selected below
-    "num_train_mappings_per": 4,
+    "num_train_mappings_per": 8,
 
     #"train_ext_composite_tasks": 253,  # should be sufficiently less than 302 (with current settings) to leave enough test tasks
     "meta_min_train_threshold": 6,  # minimum number of train items for a mapping, those with fewer will be removed 
