@@ -9,15 +9,15 @@ library(tidyverse)
 library(Hmisc)
 library(boot)
 library(lme4)
+library(lmerTest)
 ```
 
 # data loading
 
 ```{r}
 parent_dir = "../categorization_HoMM_optimizing"
-subdirs = c("results_nmappingsper_4/language_HoMM",
-            "results_nmappingsper_8/language_HoMM")
-num_runs = 10
+subdirs = c("results_nmappingsper_8/language_HoMM")
+num_runs = 5
 ```
 
 ```{r}
@@ -111,6 +111,7 @@ ggplot(loss_d %>%
 ggplot(loss_d %>%
          filter(train_or_eval == "eval",
                 epoch <= 500,
+                run < 5, 
                 num_train_mappings_per == 8,
                 loss_or_accuracy == "accuracy") %>%
          mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
@@ -235,7 +236,7 @@ ggplot(loss_d %>%
             stat="summary",
             fun.y="mean",
             na.rm=T,
-            alpha=0.15) +
+            alpha=0.2) +
   geom_line(stat="summary",
             fun.y="mean",
             na.rm=T,
