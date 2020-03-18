@@ -15,7 +15,8 @@ library(lme4)
 
 ```{r}
 parent_dir = "../categorization_HoMM_optimizing"
-subdirs = c("results_nmappingsper_4/language_HoMM")
+subdirs = c("results_nmappingsper_4/language_HoMM",
+            "results_nmappingsper_8/language_HoMM")
 num_runs = 10
 ```
 
@@ -85,7 +86,8 @@ centroid_opt_loss_d = data.frame()
 loss_d = loss_d %>%
   gather(task_and_train_or_eval, loss, -epoch, -run, -run_type, -init_type) %>%
   separate(task_and_train_or_eval, c("task", "loss_or_accuracy", "train_or_eval"), sep="[_:]") %>%
-  mutate(train_or_eval = sub("\\.[0-9]+", "", train_or_eval))
+  mutate(train_or_eval = sub("\\.[0-9]+", "", train_or_eval),
+         num_train_mappings_per = str_extract(run_type, "[0-9]+"))
   
 ```
 
@@ -109,23 +111,24 @@ ggplot(loss_d %>%
 ggplot(loss_d %>%
          filter(train_or_eval == "eval",
                 epoch <= 500,
+                num_train_mappings_per == 8,
                 loss_or_accuracy == "accuracy") %>%
          mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
        aes(x=epoch, y=loss, color=init_type)) +
-  geom_line(stat="summary",
-            fun.y="mean",
-            na.rm=T,
-            size = 2) +
   geom_line(aes(group=interaction(run, init_type)),
             stat="summary",
             fun.y="mean",
             na.rm=T,
             alpha=0.4) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            na.rm=T,
+            size = 2) +
   geom_hline(yintercept=0.5, alpha=0.5, linetype=2) +
   scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
   annotate("text", x=400, y=0.52, alpha=0.5, label="Chance") +
   labs(x="Epoch (training task embeddings on new data)", y="Accuracy on new tasks") +
-  guides(color=guide_legend(title="")) 
+  guides(color=guide_legend(title="")) +
 
 ggsave("../../../psych/dissertation/5-timescales/figures/category_optimization_curves.png", width=6, height=4)
 ```
@@ -133,6 +136,7 @@ ggsave("../../../psych/dissertation/5-timescales/figures/category_optimization_c
 ```{r}
 ggplot(loss_d %>%
          filter(train_or_eval == "eval",
+                num_train_mappings_per == 8,
                 loss_or_accuracy == "loss") %>%
          mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
        aes(x=epoch, y=loss, color=init_type)) +
@@ -156,6 +160,7 @@ ggplot(loss_d %>%
 ```{r}
 ggplot(loss_d %>%
          filter(train_or_eval == "eval",
+                num_train_mappings_per == 8,
                 loss_or_accuracy == "accuracy") %>%
          group_by(init_type, run, task) %>%
          summarise(regret_int=2 * sum(1.-loss)) %>%  # 2 is dt
@@ -163,22 +168,26 @@ ggplot(loss_d %>%
          summarise(mean_lri=mean(regret_int, na.rm=T)) %>%
          ungroup() %>%
          mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping\noutput", "Centroid\nof tasks", "Arbitrary\ntrain task", "Random\nvector", "Untrained model"))),
-       aes(x=init_type, y=mean_lri, fill=init_type)) +
-  geom_bar(stat="summary",
-           fun.y="mean") +
+       aes(x=init_type, y=mean_lri, color=init_type)) +
+  geom_point(stat="summary",
+             fun.y="mean",
+             size=2) +
   geom_errorbar(stat="summary",
                 fun.data="mean_cl_boot",
                 width=0.5) +
-  scale_fill_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
+  scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
+  scale_y_log10(breaks=c(1e-01, 1, 1e1, 1e2), labels = c(0.1, 1, 10, 100)) +
   labs(x="Initialization", y="Mean cumulative regret on new task") +
-  guides(fill=F)
+  guides(color=F)
 
 ggsave("../../../psych/dissertation/5-timescales/figures/category_optimization_cumulative_regret.png", width=6, height=4)
 ```
+
 ```{r}
 intermediate_data = loss_d %>%
   filter(train_or_eval == "eval",
          loss_or_accuracy == "accuracy",
+         num_train_mappings_per == 8,
          !is.na(loss)) %>%
   group_by(init_type, run, task) %>%
   summarise(regret_int= 2 * sum(1.- loss)) %>%  # 2 is dt
@@ -210,3 +219,34 @@ lmer(
   summary()
 ```
 
+# MM paper plot
+
+
+```{r}
+
+ggplot(loss_d %>%
+         filter(train_or_eval == "eval",
+                epoch <= 500,
+                num_train_mappings_per == 8,
+                loss_or_accuracy == "accuracy") %>%
+         mutate(init_type=factor(init_type, levels=c("guess", "trained_centroid", "arbitrary_train_task", "random_init", "untrained"), labels=c("Meta-mapping output", "Centroid of tasks", "Arbitrary train task", "Random vector", "Untrained model"))),
+       aes(x=epoch, y=loss, color=init_type)) +
+  geom_line(aes(group=interaction(run, init_type)),
+            stat="summary",
+            fun.y="mean",
+            na.rm=T,
+            alpha=0.15) +
+  geom_line(stat="summary",
+            fun.y="mean",
+            na.rm=T,
+            size = 2) +
+  geom_hline(yintercept=0.5, alpha=0.5, linetype=2) +
+  scale_color_manual(values=c("#e41a1c", "#ff7f00", "#984ea3", "#477ec8", "#4daf4a")) +
+  annotate("text", x=400, y=0.47, alpha=0.5, label="Chance") +
+  labs(x="Epoch (training task embeddings on new data)", y="Accuracy on new tasks") +
+  guides(color=guide_legend(title=NULL)) +
+  theme(legend.position=c(0.8, 0.35),
+        legend.key.size = unit(0.5, 'lines')) 
+
+ggsave("../../metamapping_paper/figures/category_optimization_curves.png", width=4, height=3)
+```
