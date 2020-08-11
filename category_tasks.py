@@ -31,6 +31,10 @@ RANDOM_ANGLE_RANGE = 20
 
 BASE_COLORS = {n: np.array(c, dtype=np.float32) for n, c in BASE_COLORS.items()} 
 
+BASE_SHAPE_INDICES = {s: i for (i, s) in enumerate(BASE_SHAPES)}
+BASE_COLOR_INDICES = {c: i for (i, c) in enumerate(BASE_COLORS.keys())}
+BASE_SIZE_INDICES = {s: i for (i, s) in enumerate(BASE_SIZES)}
+
 def _render_plain_shape(name, size):
     """Shape without color dimension."""
     size = int(size)
@@ -91,13 +95,24 @@ class categorization_instance(object):
     def __init__(self, shape, color, size):
         self.shape = shape
         self.color = color
-        self.raw_color = BASE_COLORS[self.color]
+        #self.raw_color = BASE_COLORS[self.color]
         self.size = size
 
+        num_shapes = len(BASE_SHAPES)
+        num_colors = len(BASE_COLORS)
+        num_sizes = len(BASE_SIZES)
+        self.attribute_vector = np.zeros(num_colors + num_colors + num_sizes)
+        self.attribute_vector[BASE_SHAPE_INDICES[shape]] = 1.
+        self.attribute_vector[num_shapes + BASE_COLOR_INDICES[color]] = 1.
+        self.attribute_vector[num_shapes + num_colors + BASE_SIZE_INDICES[size]] = 1.
+
     def render(self):
-        plain_image = render_uncolored_shape(self.shape, self.size) 
-        image = plain_image[:, :, None] * self.raw_color[None, None, :]
-        return image
+        return self.attribute_vector
+
+#    def render(self):
+#        plain_image = render_uncolored_shape(self.shape, self.size) 
+#        image = plain_image[:, :, None] * self.raw_color[None, None, :]
+#        return image
 
     def __str__(self):
         return "{}_{}_{}".format(self.shape, self.color, self.size)
@@ -379,17 +394,19 @@ if __name__ == "__main__":
     for sz in BASE_SIZES[1:]:
         for s in ["triangle", "inverseplus", "emptysquare", "circle"]:
             for c in ["red", "yellow", "purple", "cyan"]:
+                print(s,c,sz)
                 for sample_i in range(2):
                     inst = categorization_instance(s, c, sz)
-                    fig = plt.figure(frameon=False)
-                    fig.set_size_inches(3, 3)
-                    ax = plt.Axes(fig, [0., 0., 1., 1.])
-                    ax.set_axis_off()
-                    fig.add_axes(ax)
-                    plt.imshow(inst.render(), aspect='auto')
-                    plt.savefig("stimulus_renders/%s_%s_%s_%i.png" % (sz, c, s, sample_i))
-                    plt.close()
-
+                    print(inst.render())
+#                    fig = plt.figure(frameon=False)
+#                    fig.set_size_inches(3, 3)
+#                    ax = plt.Axes(fig, [0., 0., 1., 1.])
+#                    ax.set_axis_off()
+#                    fig.add_axes(ax)
+#                    plt.imshow(inst.render(), aspect='auto')
+#                    plt.savefig("stimulus_renders/%s_%s_%s_%i.png" % (sz, c, s, sample_i))
+#                    plt.close()
+    exit()
     for t in tasks:
         print(t)
         for s in BASE_SHAPES:
