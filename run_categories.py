@@ -11,10 +11,10 @@ import category_tasks
 
 run_config = default_run_config.default_run_config
 run_config.update({
-    "output_dir": "/mnt/fs4/lampinen/categorization_HoMM_better_smaller_size_sweep/results_nmappingsper_16/",
+    "output_dir": "/mnt/fs4/lampinen/toy_categorization_HoMM/results_nmappingsper_16/",
 
-    "run_offset": 0,
-    "num_runs": 6,
+    "run_offset": 1,
+    "num_runs": 1,
     
     "base_train_tasks": [], 
     "base_eval_tasks": [], 
@@ -57,7 +57,7 @@ shape_metamappings = ["switch_shape_triangle~square", "switch_shape_triangle~plu
 
 architecture_config = default_architecture_config.default_architecture_config
 architecture_config.update({
-   "input_shape": [50, 50, 3],
+   "input_shape": [8 + 8 + 3],
    "output_shape": [1],
 
     "IO_num_hidden": 512,
@@ -82,12 +82,12 @@ architecture_config.update({
 
     "task_weight_weight_mult": 30.,
 
-    "vision_layers": [[64, 5, 2, False],
-                      [128, 4, 2, False],
-                      [256, 4, 2, False],
-                      [512, 2, 2, True]],
+#    "vision_layers": [[64, 5, 2, False],
+#                      [128, 4, 2, False],
+#                      [256, 4, 2, False],
+#                      [512, 2, 2, True]],
 })
-if True:  # enable for language baseline
+if False:  # enable for language baseline
     run_config.update({
         "train_language_base": True,
         "train_base": False,
@@ -213,9 +213,9 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             output_processor = None
         super(category_HoMM_model, self).__init__(
             architecture_config=architecture_config, run_config=run_config,
-            input_processor=lambda x: vision(x, architecture_config["z_dim"],
-                                             architecture_config["IO_num_hidden"],
-                                             architecture_config["vision_layers"]),
+#            input_processor=lambda x: vision(x, architecture_config["z_dim"],
+#                                             architecture_config["IO_num_hidden"],
+#                                             architecture_config["vision_layers"]),
             output_processor=output_processor,
             base_loss=lambda x, y: xe_loss(x, y, self.guess_input_mask_ph))
 
@@ -426,7 +426,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             index = 0
             for i, inst in enumerate(examples["positive"]):
                 for j in range(multiplicity):
-                    x_data[index, :, :, :] = inst.render()
+                    x_data[index, :] = inst.render()
                     index += 1
                     if index >= memory_buffer_size // 2:
                         break
@@ -441,7 +441,7 @@ class category_HoMM_model(HoMM_model.HoMM_model):
                     
                 ex_perm = np.random.permutation(len(these_contrasting))
                 for j in range(multiplicity):
-                    x_data[index, :, :, :] = these_contrasting[ex_perm[j % len(ex_perm)]].render()
+                    x_data[index, :] = these_contrasting[ex_perm[j % len(ex_perm)]].render()
                     index += 1
                     if index >= memory_buffer_size:
                         break
@@ -451,14 +451,14 @@ class category_HoMM_model(HoMM_model.HoMM_model):
             if len(examples["other"]) > 0:
                 ex_perm = np.random.permutation(len(examples["other"]))
                 for i in range(self.architecture_config["memory_buffer_size"] - index):
-                    x_data[index, :, :, :] = examples["other"][ex_perm[i % len(ex_perm)]].render()
+                    x_data[index, :] = examples["other"][ex_perm[i % len(ex_perm)]].render()
                     index += 1
             else:  # for basic rules e.g. all examples "contrast" another
                 pos_perm = np.random.permutation(len(examples["all_negative"]))
                 pos_perm_len = len(pos_perm)
                 for i in range(self.architecture_config["memory_buffer_size"] - index):
                     pos_ind = pos_perm[i % pos_perm_len]
-                    x_data[index, :, :, :] = examples["all_negative"][pos_ind].render()
+                    x_data[index, :] = examples["all_negative"][pos_ind].render()
                     index += 1
 
             buff.insert(x_data, y_data, num_positive)
