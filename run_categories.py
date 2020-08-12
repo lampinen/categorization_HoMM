@@ -13,7 +13,7 @@ run_config = default_run_config.default_run_config
 run_config.update({
     "output_dir": "/mnt/fs4/lampinen/toy_categorization_HoMM/results_nmappingsper_16/",
 
-    "run_offset": 1,
+    "run_offset": 0,
     "num_runs": 1,
     
     "base_train_tasks": [], 
@@ -103,7 +103,7 @@ if False:  # enable for language baseline
         "mlp_output": False,
     })
 
-if False:  # enable for homoiconic language-based training and meta-mapping 
+if True:  # enable for homoiconic language-based training and meta-mapping 
     run_config.update({
         "train_language_base": True,
         "train_language_meta": True,
@@ -628,5 +628,9 @@ for run_i in range(run_config["run_offset"], run_config["run_offset"] + run_conf
 
     model = category_HoMM_model(run_config=run_config)
     model.run_training()
+    model.save_parameters(model.filename_prefix + "final_checkpoint")
+    #model.restore_parameters(model.filename_prefix + "final_checkpoint")
+    model.save_task_embeddings(model.filename_prefix + "task_representations.csv")
+    model.save_metamapped_task_embeddings(model.filename_prefix + "task_representations_")
 
     tf.reset_default_graph()
