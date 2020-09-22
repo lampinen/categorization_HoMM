@@ -349,7 +349,8 @@ ggplot(data=comparison_d %>%
              position=position_dodge(0.8),
              show.legend=F) +
   #scale_color_manual(values=c("#e41a1c", "#477ec8")) +
-  scale_color_manual(values=c("#fec44f", "#02205b")) +
+  #scale_color_manual(values=c("#fec44f", "#02205b")) +
+  scale_color_manual(values=c("#7e0146", "#158035")) +
   scale_linetype_manual(values=c(1, 2, 1)) +
   labs(x="Number of training meta-mappings", y="Adapted concept eval. accuracy\n(trained meta-mappings)") +
   scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
@@ -538,7 +539,8 @@ ggplot(data=comparison_d %>%
                      labels = c("4", "8", "12", "16", "20", "24", "32")) +
                      #labels = c("4\n(~110)", "8\n(~150)", "16\n(~200)", "24\n(~250)", "32\n(~300)")) +
   scale_y_continuous(breaks = c(0., 0.5, 1), labels = c("0/10", "5/10", "10/10")) + #, limits = c(0.8, NA)) +
-  scale_color_manual(values=c("#fec44f", "#02205b")) +
+  #scale_color_manual(values=c("#fec44f", "#02205b")) +
+  scale_color_manual(values=c("#7e0146", "#158035")) +
   guides(color=guide_legend(title=NULL,
                             override.aes = list(shape=NA)),
          linetype=guide_legend(title=NULL)) +
@@ -581,7 +583,8 @@ ggplot(data=comparison_d %>%
              position=position_dodge(0.8)) +
   labs(x="Number of training meta-mappings", y="Proportion of runs with >99%\nevaluation accuracy (held-out MMs)") +
   scale_y_continuous(breaks = c(0., 0.5, 1), labels = c("0/10", "5/10", "10/10"), limits = c(0, 1)) +
-  scale_color_manual(values=c("#fec44f", "#02205b")) +
+  #scale_color_manual(values=c("#fec44f", "#02205b")) +
+  scale_color_manual(values=c("#7e0146", "#158035")) +
   #scale_color_manual(values=c("#e41a1c", "#477ec8")) +
 #  scale_linetype_manual(values=c(1, 2, 1)) +
   scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
