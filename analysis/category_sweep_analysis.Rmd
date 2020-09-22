@@ -401,7 +401,8 @@ ggplot(data=comparison_d %>%
              size=2.5,
              #position=position_dodge(0.8),
              show.legend=F) +
-  scale_color_manual(values=c("#984ea3", "#ff7f00")) +
+  #scale_color_manual(values=c("#984ea3", "#ff7f00")) +
+  scale_color_manual(values=c("#542088", "#e88224")) +
   scale_linetype_manual(values=c("solid", "31")) +
   labs(x="Number of training meta-mappings", y="Adapted concept evaluation accuracy") +
   scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
@@ -629,7 +630,8 @@ ggplot(data=comparison_d %>%
              size=3,
              position=position_dodge(0.8)) +
   labs(x="Number of training meta-mappings", y="Proportion of runs with\n>99% evaluation accuracy") +
-  scale_color_manual(values=c("#984ea3", "#ff7f00")) +
+  #scale_color_manual(values=c("#984ea3", "#ff7f00")) +
+  scale_color_manual(values=c("#542088", "#e88224")) +
   scale_linetype_manual(values=c("solid", "31")) +
   scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 16),
                      labels = c("4", "8", "12", "16", "20", "24", "32")) +
